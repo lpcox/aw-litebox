@@ -39,6 +39,7 @@ impl<Platform: platform::Provider> FileSystem<Platform> {
     /// Opens a file
     ///
     /// The `mode` is only significant when creating a file
+    #[allow(clippy::needless_pass_by_value)] // `path::Arg` already accounts for references
     pub fn open(&self, path: impl path::Arg, flags: OFlags, mode: Mode) -> Result<OwnedFd> {
         // NOTE: It is in functions like this that the platform's functionality can be used through
         // `self.platform` as part of the LiteBox implementation. Users of LiteBox do not need to be

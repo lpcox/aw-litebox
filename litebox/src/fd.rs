@@ -43,6 +43,7 @@ impl OwnedFd {
     /// This value should not be held on to or stored anywhere for any significant duration;
     /// ideally, any time that this might be stored, a reference to the `OwnedFd` should held on to
     /// instead to prevent references to dead file descriptors.
+    #[must_use]
     pub fn as_raw_fd(&self) -> RawFd {
         if self.is_closed() {
             unreachable!(

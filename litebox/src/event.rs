@@ -32,6 +32,7 @@ impl<Platform: platform::Provider> EventManager<Platform> {
     ///
     /// Returns a [`Waitable`] that supports a `wait` method to wait until the registered conditions
     /// are satisfied.
+    #[must_use]
     pub fn register<'b>(&self, waitable_builder: &'b WaitableBuilder) -> Waitable<'b> {
         todo!()
     }
@@ -76,6 +77,7 @@ impl Waitable<'_> {
 
 impl WaitableBuilder {
     /// Begin building a waitable for events on a file
+    #[must_use]
     pub fn on_file(fd: &OwnedFd) -> Self {
         Self {
             raw_fd: fd.as_raw_fd(),
@@ -84,6 +86,7 @@ impl WaitableBuilder {
     }
 
     /// Begin building a waitable for events on a socket
+    #[must_use]
     pub fn on_socket(fd: &SocketFd) -> Self {
         Self {
             raw_fd: fd.fd.as_raw_fd(),
@@ -110,6 +113,7 @@ impl WaitableBuilder {
     }
 
     /// Get the current active set of events
+    #[must_use]
     pub fn events(&self) -> Events {
         self.events
     }

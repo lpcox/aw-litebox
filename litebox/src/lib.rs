@@ -13,6 +13,15 @@
 // NOTE(jayb): Allowing this only until the API design is fleshed out, once that is complete, this
 // suppressed warning should be removed.
 #![allow(dead_code, unused)]
+// Introduce all the pedantic clippy lints and remove ones I (jayb) think are pushing it too far;
+// this way we get something even further than default clippy but not _too_ ridiculous.
+#![warn(clippy::pedantic)]
+#![allow(
+    clippy::unreadable_literal,
+    clippy::doc_markdown,
+    clippy::missing_errors_doc,
+    clippy::needless_pass_by_value
+)]
 
 extern crate alloc;
 
