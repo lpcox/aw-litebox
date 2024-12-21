@@ -99,13 +99,16 @@ where
 
 /// A provider of raw mutexes
 pub trait RawMutexProvider {
-    type RawMutex;
+    type RawMutex: RawMutex;
     /// Allocate a new [`RawMutex`].
     fn new_raw_mutex(&self) -> Self::RawMutex;
 }
 
 /// A raw mutex/lock API; expected to roughly match (or even be implemented using) a Linux futex.
 pub trait RawMutex: Send + Sync {
+    /// Returns a reference to the underlying atomic value
+    fn underlying_atomic(&self) -> &core::sync::atomic::AtomicU32;
+
     /// Wake up `n` threads blocked on on this raw mutex.
     ///
     /// Returns the number of waiters that were woken up.
@@ -125,15 +128,24 @@ pub trait RawMutex: Send + Sync {
         self.wake_many(usize::MAX)
     }
 
-    /// Block until a wake operation wakes us up.
-    fn block(&self);
+    /// If the underlying value is `val`, block until a wake operation wakes us up.
+    fn block(&self, val: u32) -> Result<(), ImmediatelyWokenUp>;
 
     /// Block until a wake operation wakes us up, or some `time` has passed without a wake operation
     /// having occured.
-    fn block_or_timeout(&self, time: core::time::Duration) -> UnblockedOrTimedOut;
+    fn block_or_timeout(
+        &self,
+        val: u32,
+        time: core::time::Duration,
+    ) -> Result<UnblockedOrTimedOut, ImmediatelyWokenUp>;
 }
 
+/// A zero-sized struct indicating that the block was immediately unblocked (due to non-matching
+/// value).
+pub struct ImmediatelyWokenUp {}
+
 /// Named-boolean to indicate whether [`RawMutex::block_or_timeout`] was woken up or timed out.
+#[must_use]
 pub enum UnblockedOrTimedOut {
     /// Unblocked by a wake call
     Unblocked,

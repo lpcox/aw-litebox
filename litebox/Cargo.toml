@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+arrayvec = { version = "0.7.6", default-features = false, optional = true }
 bitflags = "2.6.0"
 either = { version = "1.13.0", default-features = false }
+spin = { version = "0.9.8", default-features = false, optional = true }
 thiserror = { version = "2.0.6", default-features = false }
 
 [features]
-lock_tracing = []
+lock_tracing = ["dep:arrayvec", "dep:spin", "spin?/mutex", "spin?/spin_mutex"]
