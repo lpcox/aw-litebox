@@ -1,0 +1,362 @@
+//! A [LiteBox platform](../litebox/platform/index.html) for running LiteBox on userland Linux.
+
+// Restrict this crate to only work on Linux. For now, we are restricting this to only x86-64 Linux,
+// but we _may_ allow for more in the future, if we find it useful to do so.
+#![cfg(all(target_os = "linux", target_arch = "x86_64"))]
+
+use std::marker::PhantomData;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering::SeqCst;
+use std::time::Duration;
+
+use litebox::platform::ImmediatelyWokenUp;
+use litebox::platform::UnblockedOrTimedOut;
+
+/// The userland Linux platform.
+///
+/// This implements the main [`litebox::platform::Provider`] trait, i.e., implements all platform
+/// traits. Notably, however, it supports parametric punchtrough (defaulted to impossible
+/// punchtrough).
+pub struct LinuxUserland<Punchthrough: litebox::platform::Punchthrough = litebox::platform::trivial_providers::ImpossiblePunchthrough> {
+    __private: (),
+    punchthrough: PhantomData<Punchthrough>,
+}
+
+impl LinuxUserland {
+    /// Create a new userland-Linux platform for use in `LiteBox`.
+    // TODO(jayb) Add support for configuring the tun interface.
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self {
+            __private: (),
+            punchthrough: PhantomData,
+        }
+    }
+}
+
+impl<Punchthrough: litebox::platform::Punchthrough> litebox::platform::Provider
+    for LinuxUserland<Punchthrough>
+{
+}
+
+impl<Punchthrough: litebox::platform::Punchthrough> litebox::platform::RawMutexProvider
+    for LinuxUserland<Punchthrough>
+{
+    type RawMutex = RawMutex;
+
+    fn new_raw_mutex(&self) -> Self::RawMutex {
+        RawMutex {
+            inner: AtomicU32::new(0),
+            num_to_wake_up: AtomicU32::new(0),
+        }
+    }
+}
+
+// This raw-mutex design takes up more space than absolutely ideal and may possibly be optimized if
+// we can allow for spurious wake-ups. However, the current design makes sure that spurious wake-ups
+// do not actually occur, and that something that is `block`ed can only be woken up by a `wake`.
+pub struct RawMutex {
+    // The `inner` is the value shown to the outside world as an underlying atomic.
+    inner: AtomicU32,
+    // The `num_to_wake_up` is the actually what the futexes rely upon, and is a bit-field.
+    //
+    // The uppermost two bits (1<<31, and 1<<30) act as a "lock bit" for the waker (we use two of
+    // them to make it easier to catch accidental integer wrapping bugs more easily, at the cost of
+    // supporting "only" 1-billion waiters being woken up at once), preventing multiple wakers from
+    // running at the same time.
+    //
+    // The lower 30 bits indicate how many waiters the waker wants to wake up. The waiters
+    // themselves will decrement this number as they wake up, but should make sure not to overflow
+    // (this is why we use two bits for the lock bit---to catch implementation bugs of this kind).
+    num_to_wake_up: AtomicU32,
+}
+
+fn latest_errno() -> i32 {
+    unsafe { *libc::__errno_location() }
+}
+
+impl RawMutex {
+    fn block_or_maybe_timeout(
+        &self,
+        val: u32,
+        timeout: Option<Duration>,
+    ) -> Result<UnblockedOrTimedOut, ImmediatelyWokenUp> {
+        // We immediately wake up (without even hitting syscalls) if we can clearly see that the
+        // value is different.
+        if self.inner.load(SeqCst) != val {
+            return Err(ImmediatelyWokenUp);
+        }
+
+        // Track some initial information.
+        let mut first_time = true;
+        let start = std::time::Instant::now();
+
+        // We'll be looping unless we find a good reason to exit out of the loop, either due to a
+        // wake-up or a time-out. We do a singular (only as a one-off) check for the
+        // immediate-wake-up purely as an optimization, but otherwise, the only way to exit this
+        // loop is to actually hit an `Ok` state out for this function.
+        loop {
+            let remaining_time = match timeout {
+                None => None,
+                Some(timeout) => match timeout.checked_sub(start.elapsed()) {
+                    None => {
+                        break Ok(UnblockedOrTimedOut::TimedOut);
+                    }
+                    Some(remaining_time) => Some(remaining_time),
+                },
+            };
+
+            // We wait on the futex, with a timeout if needed; the timeout is based on how much time
+            // remains to be elapsed.
+            match futex_timeout(
+                &self.num_to_wake_up,
+                FutexOperation::Wait,
+                /* expected value */ 0,
+                remaining_time,
+                /* ignored */ None,
+                /* ignored */ 0,
+            ) {
+                0 => {
+                    // Fallthrough: check if spurious.
+                }
+                -1 => {
+                    let errno = latest_errno();
+                    if errno == libc::EAGAIN {
+                        // A wake-up was already in progress when we attempted to wait. Has someone
+                        // already touched inner value? We only check this on the first time around,
+                        // anything else could be a true wake.
+                        if first_time && self.inner.load(SeqCst) != val {
+                            // Ah, we seem to have actually been immediately woken up! Let us not
+                            // miss this.
+                            return Err(ImmediatelyWokenUp);
+                        } else {
+                            // Fallthrough: check if spurious. A wake-up was already in progress
+                            // when we attempted to wait, so we can do a proper check.
+                        }
+                    } else {
+                        panic!("Unexpected errno={errno} for FUTEX_WAIT")
+                    }
+                }
+                _ => unreachable!(),
+            }
+
+            // We have either been woken up, or this is spurious. Let us check if we were
+            // actually woken up.
+            match self.num_to_wake_up.fetch_update(SeqCst, SeqCst, |n| {
+                if n & (1 << 31) == 0 {
+                    // No waker in play, do nothing to the value
+                    None
+                } else if n & ((1 << 30) - 1) > 0 {
+                    // There is a waker, and there is still capacity to wake up
+                    Some(n - 1)
+                } else {
+                    // There is a waker, but capacity is gone
+                    None
+                }
+            }) {
+                Ok(_) => {
+                    // We marked ourselves as having woken up, we can exit, marking
+                    // ourselves as no longer waiting.
+                    break Ok(UnblockedOrTimedOut::Unblocked);
+                }
+                Err(_) => {
+                    // We have not yet been asked to wake up, this is spurious. Spin that
+                    // loop again.
+                    first_time = false;
+                    continue;
+                }
+            }
+        }
+    }
+}
+
+impl litebox::platform::RawMutex for RawMutex {
+    fn underlying_atomic(&self) -> &AtomicU32 {
+        &self.inner
+    }
+
+    fn wake_many(&self, n: usize) -> usize {
+        assert!(n > 0);
+        let n: u32 = n.try_into().unwrap();
+
+        // We restrict ourselves to a max of ~1 billion waiters being woken up at once, which should
+        // be good enough, but makes sure we are not clobbering the "lock bits".
+        let n = n.min((1 << 30) - 1);
+
+        // We first requeue all the waiters into a temporary queue, so that anyone else showing up
+        // to block is not going to be impacted.
+        let temp_q = AtomicU32::new(0);
+        match futex_val2(
+            &self.num_to_wake_up,
+            FutexOperation::Requeue,
+            /* number to wake up */ 0,
+            /* number to requeue */ u32::MAX,
+            Some(&temp_q),
+            /* val3: ignored */ 0,
+        ) {
+            0 => {
+                // Since we didn't ask for anyone to wake up, this should just move everyone over,
+                // and tell us no one was woken up.
+            }
+            _ => unreachable!(),
+        }
+
+        // Then, we set the number of waiters we want allowed to know that they can wake up, while
+        // also grabbing the "lock bit"s.
+        while self
+            .num_to_wake_up
+            .compare_exchange(0, n | (0b11 << 30), SeqCst, SeqCst)
+            .is_err()
+        {
+            // If someone else is _also_ attempting to wake waiters up, then we should just spin
+            // until the other waker is done with their job and brings the value down.
+            core::hint::spin_loop();
+        }
+
+        // Now we can actually wake them up; if anyone is left unwoken though, we should move them
+        // back into the main queue.
+        let num_woken_up = futex_val2(
+            &temp_q,
+            FutexOperation::Requeue,
+            /* number to wake up */ n,
+            /* number to requeue */ u32::MAX,
+            Some(&self.num_to_wake_up),
+            /* val3: ignored */ 0,
+        );
+
+        // Unlock the lock bits, allowing other wakers to run.
+        let final_num_to_wake_up = self.num_to_wake_up.swap(0, SeqCst);
+
+        // Confirm that no one has clobbered the lock bits (which would indicate an implementation
+        // failure somewhere).
+        assert_eq!(
+            final_num_to_wake_up >> 30,
+            0b11,
+            "lock bits should remain unclobbered"
+        );
+
+        // Return the number that were actually woken up
+        num_woken_up.try_into().unwrap()
+    }
+
+    fn block(&self, val: u32) -> Result<(), ImmediatelyWokenUp> {
+        match self.block_or_maybe_timeout(val, None) {
+            Ok(UnblockedOrTimedOut::Unblocked) => Ok(()),
+            Ok(UnblockedOrTimedOut::TimedOut) => unreachable!(),
+            Err(ImmediatelyWokenUp) => Err(ImmediatelyWokenUp),
+        }
+    }
+
+    fn block_or_timeout(
+        &self,
+        val: u32,
+        timeout: Duration,
+    ) -> Result<UnblockedOrTimedOut, ImmediatelyWokenUp> {
+        self.block_or_maybe_timeout(val, Some(timeout))
+    }
+}
+
+impl<Punchthrough: litebox::platform::Punchthrough> litebox::platform::IPInterfaceProvider
+    for LinuxUserland<Punchthrough>
+{
+    fn send_ip_packet(&self, packet: &[u8]) -> Result<(), litebox::platform::SendError> {
+        todo!("TODO: Send packet of length {}", packet.len())
+    }
+
+    fn receive_ip_packet(
+        &self,
+        packet: &mut [u8],
+    ) -> Result<usize, litebox::platform::ReceiveError> {
+        todo!("TODO: Receive into buffer of length {}", packet.len())
+    }
+}
+
+impl<Punchthrough: litebox::platform::Punchthrough> litebox::platform::TimeProvider
+    for LinuxUserland<Punchthrough>
+{
+    type Instant = Instant;
+
+    fn now(&self) -> Self::Instant {
+        Instant {
+            inner: std::time::Instant::now(),
+        }
+    }
+}
+
+pub struct Instant {
+    inner: std::time::Instant,
+}
+
+impl litebox::platform::Instant for Instant {
+    fn checked_duration_since(&self, earlier: &Self) -> Option<core::time::Duration> {
+        self.inner.checked_duration_since(earlier.inner)
+    }
+}
+
+impl<Punchthrough: litebox::platform::Punchthrough> litebox::platform::PunchthroughProvider
+    for LinuxUserland<Punchthrough>
+{
+    type Punchthrough = Punchthrough;
+}
+
+impl<Punchthrough: litebox::platform::Punchthrough> litebox::platform::DebugLogProvider
+    for LinuxUserland<Punchthrough>
+{
+    fn debug_log_print(&self, msg: &str) {
+        eprint!("{msg}")
+    }
+}
+
+/// Operations currently supported by the safer variants of the Linux futex syscall
+/// ([`futex_timeout`] and [`futex_val2`]).
+#[repr(i32)]
+enum FutexOperation {
+    Wait = libc::FUTEX_WAIT,
+    Requeue = libc::FUTEX_REQUEUE,
+}
+
+/// Safer invocation of the Linux futex syscall, with the "timeout" variant of the arguments.
+fn futex_timeout(
+    uaddr: &AtomicU32,
+    futex_op: FutexOperation,
+    val: u32,
+    timeout: Option<Duration>,
+    uaddr2: Option<&AtomicU32>,
+    val3: u32,
+) -> i64 {
+    let uaddr: *const AtomicU32 = uaddr as _;
+    let futex_op: i32 = futex_op as _;
+    let timeout = timeout.map(|t| {
+        const TEN_POWER_NINE: u128 = 1_000_000_000;
+        let nanos: u128 = t.as_nanos();
+        let tv_sec = nanos
+            .checked_div(TEN_POWER_NINE)
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let tv_nsec = nanos
+            .checked_rem(TEN_POWER_NINE)
+            .unwrap()
+            .try_into()
+            .unwrap();
+        libc::timespec { tv_sec, tv_nsec }
+    });
+    let timeout: *const libc::timespec = timeout.map_or(std::ptr::null(), |t| &t);
+    let uaddr2: *const AtomicU32 = uaddr2.map_or(std::ptr::null(), |u| u);
+    unsafe { libc::syscall(libc::SYS_futex, uaddr, futex_op, val, timeout, uaddr2, val3) }
+}
+
+/// Safer invocation of the Linux futex syscall, with the "val2" variant of the arguments.
+fn futex_val2(
+    uaddr: &AtomicU32,
+    futex_op: FutexOperation,
+    val: u32,
+    val2: u32,
+    uaddr2: Option<&AtomicU32>,
+    val3: u32,
+) -> i64 {
+    let uaddr: *const AtomicU32 = uaddr as _;
+    let futex_op: i32 = futex_op as _;
+    let uaddr2: *const AtomicU32 = uaddr2.map_or(std::ptr::null(), |u| u);
+    unsafe { libc::syscall(libc::SYS_futex, uaddr, futex_op, val, val2, uaddr2, val3) }
+}
