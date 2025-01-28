@@ -2,90 +2,54 @@
 
 use crate::fd::FileFd;
 use crate::path;
-use crate::platform;
 
 use bitflags::bitflags;
 
 use core::ffi::c_uint;
 
 pub mod errors;
+pub mod in_mem;
+pub mod nine_p;
 
 use errors::{
     ChmodError, CloseError, MkdirError, OpenError, ReadError, RmdirError, UnlinkError, WriteError,
 };
 
-/// The `FileSystem` provides access to all file-system related functionality provided by LiteBox.
-///
-/// A LiteBox `FileSystem` is parametric in the platform it runs on.
-pub struct FileSystem<'platform, Platform: platform::Provider> {
-    platform: &'platform Platform,
-}
-
-impl<'platform, Platform: platform::Provider> FileSystem<'platform, Platform> {
-    /// Construct a new `FileSystem` instance
+/// A private module, to help support writing sealed traits. This module should _itself_ never be
+/// made public.
+mod private {
+    /// A trait to help seal the main `FileSystem` trait.
     ///
-    /// This function is expected to only be invoked once per platform, as an initialiation step,
-    /// and the created `FileSystem` handle is expected to be shared across all usage over the
-    /// system.
-    pub fn new(platform: &'platform Platform) -> Self {
-        Self { platform }
-    }
+    /// This trait is explicitly public, but unnameable, thereby preventing code outside this crate
+    /// from implementing this trait.
+    pub trait Sealed {}
 }
 
-impl<Platform: platform::Provider> FileSystem<'_, Platform> {
+/// A `FileSystem` provides access to all file-system related functionality provided by LiteBox.
+///
+/// The design of the file-system is chosen by the specific underlying implementation of this trait
+/// (i.e., [`InMemoryFileSystem`] or [`NinePFileSystem`]), each of which are parametric in the
+/// platform they run on. However, users of any of these file systems might find benefit in having
+/// most of their code depend on this trait, rather than on any individual file system.
+pub trait FileSystem: private::Sealed {
     /// Opens a file
     ///
     /// The `mode` is only significant when creating a file
-    #[allow(clippy::needless_pass_by_value)] // `path::Arg` already accounts for references
-    pub fn open(
-        &self,
-        path: impl path::Arg,
-        flags: OFlags,
-        mode: Mode,
-    ) -> Result<FileFd, OpenError> {
-        // NOTE: It is in functions like this that the platform's functionality can be used through
-        // `self.platform` as part of the LiteBox implementation. Users of LiteBox do not need to be
-        // concerned with how things connect to each other inside LiteBox, they simply maintain the
-        // filesystem object, thereby giving us access to the platform.
-        todo!()
-    }
-
+    fn open(&self, path: impl path::Arg, flags: OFlags, mode: Mode) -> Result<FileFd, OpenError>;
     /// Close the file at `fd`
-    pub fn close(&self, fd: FileFd) -> Result<(), CloseError> {
-        let mut fd = fd;
-        fd.x.mark_as_closed();
-        todo!()
-    }
-
+    fn close(&self, fd: FileFd) -> Result<(), CloseError>;
     /// Read from a file descriptor into a buffer
-    pub fn read(&self, fd: &FileFd, buf: &mut [u8]) -> Result<usize, ReadError> {
-        todo!()
-    }
-
+    fn read(&self, fd: &FileFd, buf: &mut [u8]) -> Result<usize, ReadError>;
     /// Write from a buffer to a file descriptor
-    pub fn write(&self, fd: &FileFd, buf: &[u8]) -> Result<usize, WriteError> {
-        todo!()
-    }
-
+    fn write(&self, fd: &FileFd, buf: &[u8]) -> Result<usize, WriteError>;
     /// Change the permissions of a file
-    pub fn chmod(&self, path: impl path::Arg, mode: Mode) -> Result<(), ChmodError> {
-        todo!()
-    }
-
+    fn chmod(&self, path: impl path::Arg, mode: Mode) -> Result<(), ChmodError>;
     /// Unlink a file
-    pub fn unlink(&self, path: impl path::Arg) -> Result<(), UnlinkError> {
-        todo!()
-    }
-
+    fn unlink(&self, path: impl path::Arg) -> Result<(), UnlinkError>;
     /// Create a new directory
-    pub fn mkdir(&self, path: impl path::Arg, mode: Mode) -> Result<(), MkdirError> {
-        todo!()
-    }
-
+    fn mkdir(&self, path: impl path::Arg, mode: Mode) -> Result<(), MkdirError>;
     /// Remove a directory
-    pub fn rmdir(&self, path: impl path::Arg) -> Result<(), RmdirError> {
-        todo!()
-    }
+    fn rmdir(&self, path: impl path::Arg) -> Result<(), RmdirError>;
 }
 
 bitflags! {
