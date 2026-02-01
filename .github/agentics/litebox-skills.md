@@ -68,7 +68,27 @@ Pick the top 2-5 items from your plan and implement them. For each:
 3. **Documentation**:
    - Update README.md with new capabilities
    - Update CAPABILITIES.md with test results
-   - Create EVALUATION_YYYY-MM-DD.md to track daily progress
+   - Create or update `litebox_skill_runner/EVALUATION_YYYY-MM-DD.md` to track daily progress
+     - Location: `litebox_skill_runner/` directory
+     - Name format: `EVALUATION_2026-02-01.md` (use current date)
+     - Content: Date, assessment summary, tasks completed, test results, next steps
+     - Example structure:
+       ```markdown
+       # Evaluation - February 1, 2026
+       
+       ## Progress Assessment
+       [Summary of current capabilities]
+       
+       ## Tasks Completed
+       1. [Task description]
+       2. [Task description]
+       
+       ## Test Results
+       [Test outcomes and coverage]
+       
+       ## Next Steps
+       [Planned work for next iteration]
+       ```
 
 ### Phase 4: Validation & PR
 After implementing changes:
