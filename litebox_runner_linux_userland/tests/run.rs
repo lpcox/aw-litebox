@@ -528,7 +528,7 @@ fn test_tun_and_runner_with_iperf3() {
 #[test]
 fn test_runner_with_shell() {
     let sh_path = run_which("sh");
-    
+
     if has_origin_in_libs(&sh_path) {
         println!(
             "Skipping test: Shell executable at {} uses $ORIGIN in library paths",
@@ -538,12 +538,12 @@ fn test_runner_with_shell() {
     }
 
     println!("Testing shell execution with: {}", sh_path.display());
-    
+
     // Try to run a simple echo command
     let output = Runner::new(Backend::Rewriter, &sh_path, "shell_rewriter")
         .args(["-c", "echo 'Hello from shell in litebox!'"])
         .output();
-    
+
     let output_str = String::from_utf8_lossy(&output);
     println!("Shell output: {}", output_str);
     assert!(output_str.contains("Hello from shell in litebox!"));
@@ -554,16 +554,14 @@ fn test_runner_with_shell() {
 #[test]
 fn test_runner_with_shell_script() {
     let sh_path = run_which("sh");
-    
+
     if has_origin_in_libs(&sh_path) {
-        println!(
-            "Skipping test: Shell script test - shell uses $ORIGIN in library paths"
-        );
+        println!("Skipping test: Shell script test - shell uses $ORIGIN in library paths");
         return;
     }
 
     println!("Testing shell script with multiple commands");
-    
+
     // Test a more complex shell script with variables and multiple commands
     let script = r#"
         name="LiteBox"
@@ -572,14 +570,14 @@ fn test_runner_with_shell_script() {
         result=$((2 + 2))
         echo "Math result: $result"
     "#;
-    
+
     let output = Runner::new(Backend::Rewriter, &sh_path, "shell_script_rewriter")
         .args(["-c", script])
         .output();
-    
+
     let output_str = String::from_utf8_lossy(&output);
     println!("Shell script output:\n{}", output_str);
-    
+
     assert!(output_str.contains("Welcome to LiteBox"));
     assert!(output_str.contains("Testing shell features"));
     assert!(output_str.contains("Math result: 4"));
@@ -592,26 +590,24 @@ fn test_runner_with_shell_script() {
 #[ignore = "Bash requires unimplemented syscalls (getpgrp, ioctl)"]
 fn test_runner_with_bash() {
     let bash_path = run_which("bash");
-    
+
     if has_origin_in_libs(&bash_path) {
-        println!(
-            "Skipping test: Bash uses $ORIGIN in library paths"
-        );
+        println!("Skipping test: Bash uses $ORIGIN in library paths");
         return;
     }
 
     println!("Testing bash execution with: {}", bash_path.display());
-    
+
     // Test bash with a simple command first
     let script = r#"echo "Hello from bash in LiteBox""#;
-    
+
     let output = Runner::new(Backend::Rewriter, &bash_path, "bash_rewriter")
         .args(["-c", script])
         .output();
-    
+
     let output_str = String::from_utf8_lossy(&output);
     println!("Bash script output:\n{}", output_str);
-    
+
     assert!(output_str.contains("Hello from bash in LiteBox"));
 }
 
@@ -620,25 +616,23 @@ fn test_runner_with_bash() {
 #[test]
 fn test_runner_with_node() {
     let node_path = run_which("node");
-    
+
     if has_origin_in_libs(&node_path) {
-        println!(
-            "Skipping test: Node.js uses $ORIGIN in library paths"
-        );
+        println!("Skipping test: Node.js uses $ORIGIN in library paths");
         return;
     }
 
     println!("Testing Node.js execution with: {}", node_path.display());
-    
+
     // Test Node.js with a simple script
     let script = r#"console.log('Hello from Node.js in LiteBox!');"#;
-    
+
     let output = Runner::new(Backend::Rewriter, &node_path, "node_rewriter")
         .args(["-e", script])
         .output();
-    
+
     let output_str = String::from_utf8_lossy(&output);
     println!("Node.js script output:\n{}", output_str);
-    
+
     assert!(output_str.contains("Hello from Node.js in LiteBox!"));
 }
