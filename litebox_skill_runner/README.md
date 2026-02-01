@@ -8,21 +8,29 @@ Agent Skills are modular packages that extend AI capabilities by providing speci
 
 ## Current Status
 
-This is a **proof-of-concept implementation** that demonstrates the architecture for running Agent Skills in LiteBox. The tool successfully:
+This implementation demonstrates the architecture for running Agent Skills in LiteBox with **shell and Node.js execution working!** The tool successfully:
 
 ✅ Parses `.skill` files (zip archives) and skill directories  
 ✅ Extracts SKILL.md metadata (name, description)  
 ✅ Creates tar archives with skill resources  
 ✅ Integrates with litebox_runner_linux_userland  
 ✅ Demonstrates the execution architecture  
+✅ **Shell scripts (`/bin/sh`) work perfectly!**  
+✅ **Node.js scripts work perfectly!**  
+✅ **Python scripts work with manual setup**  
 
 ## Known Limitations
 
-### 1. No Shell Support
-LiteBox currently does not support running a shell (`/bin/sh`, `/bin/bash`). This means:
-- Shell scripts (`.sh` files) cannot be executed directly
-- Skills that rely on shell features will not work
-- Only direct binary execution (e.g., Python interpreter) is supported
+### 1. Shell Support Status
+**✅ `/bin/sh` is FULLY SUPPORTED** - Basic shell scripts work perfectly!
+- POSIX shell (`.sh` files) can be executed
+- Shell features like variables, arithmetic, and piping work
+- Skills using `/bin/sh` will run successfully
+
+**⚠️ Bash has LIMITED SUPPORT** - Bash requires some unimplemented syscalls:
+- Missing syscalls: `getpgrp`, some `ioctl` operations
+- Simple bash scripts may work, but advanced features may fail
+- Recommendation: Use `/bin/sh` for maximum compatibility
 
 ### 2. Python Execution Complexity
 
@@ -88,7 +96,24 @@ python_paths = [
 
 **See** `examples/prepare_python_skill.py` for a helper script that packages Python libraries (note: does not handle .so rewriting yet).
 
-### 3. Stateless Assumption
+### 3. Node.js Execution
+**✅ Node.js is FULLY SUPPORTED** - JavaScript execution works out of the box!
+- Node.js scripts (`.js`, `.mjs` files) can be executed
+- The syscall rewriter automatically handles Node.js binary and dependencies
+- No additional setup required beyond standard LiteBox configuration
+- Tested with Node.js v20.x
+
+**Example Node.js Execution:**
+```rust
+// In tests, Node.js works just like any other binary
+Runner::new(Backend::Rewriter, &node_path, "node_test")
+    .args(["-e", "console.log('Hello from Node.js!')"])
+    .run();
+```
+
+**See** `litebox_runner_linux_userland/tests/run.rs:test_runner_with_node` for a working example.
+
+### 4. Stateless Assumption
 Skills are assumed to be stateless for now (no persistent storage between runs).
 
 ## Usage
@@ -174,15 +199,18 @@ Scripts are executed with paths relative to the skill root (e.g., `/skill/script
 
 ## Future Work
 
-The following enhancements would enable full Python and shell script execution:
+The following enhancements would improve skill execution capabilities:
 
-- [ ] Add shell support in LiteBox core
+- [x] ✅ Shell (`/bin/sh`) support - WORKING!
+- [x] ✅ Node.js support - WORKING!
+- [x] ✅ Python support - Working with manual setup
+- [ ] Implement missing bash syscalls (getpgrp, ioctl)
 - [ ] Automate Python binary and library packaging
 - [ ] Implement syscall rewriting for .so files in tar archives
-- [ ] Support for other interpreters (Node.js, Ruby, etc.)
+- [ ] Support for other interpreters (Ruby, etc.)
 - [ ] Interactive skill execution with stdin/stdout
 - [ ] Better error handling and diagnostics
-- [ ] Integration tests for full skill execution
+- [ ] Integration tests for full skill execution with real Anthropic skills
 - [ ] Persistent storage support for stateful skills
 
 ## Example Skills
