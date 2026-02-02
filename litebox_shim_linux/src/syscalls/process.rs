@@ -1327,11 +1327,10 @@ impl Task {
             let shebang = &buf[2..line_end];
 
             // Trim leading whitespace
-            let shebang = shebang
+            let shebang: &[u8] = shebang
                 .iter()
                 .position(|&b| b != b' ' && b != b'\t')
-                .map(|start| &shebang[start..])
-                .unwrap_or(&[]);
+                .map_or(&[], |start| &shebang[start..]);
 
             if shebang.is_empty() {
                 return Err(Errno::ENOEXEC); // Empty shebang
