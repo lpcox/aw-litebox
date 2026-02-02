@@ -1302,7 +1302,7 @@ impl Task {
         let result = (|| {
             // Read first bytes to check for shebang
             let mut buf = [0u8; MAX_SHEBANG_LEN];
-            let bytes_read = self.sys_read(fd, &mut buf[..], Some(0))?;
+            let bytes_read = self.sys_read(fd, &mut buf[..], None)?;
 
             if bytes_read < 2 {
                 return Ok(None); // File too short to be a script

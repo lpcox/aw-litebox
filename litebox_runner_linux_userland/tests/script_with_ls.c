@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
         "#!/bin/sh\n"
         "echo 'Script starting...'\n"
         "echo 'Listing directory:'\n"
-        "/bin/ls /tmp/test_dir\n"
+        "ls /tmp/test_dir\n"
         "echo 'Script completed successfully'\n"
         "exit 0\n";
     
