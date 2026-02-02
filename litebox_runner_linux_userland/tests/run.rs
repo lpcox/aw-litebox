@@ -165,7 +165,8 @@ impl Runner {
         let tar_success =
             common::create_tar_with_cache(&self.tar_dir, &tar_file, &self.unique_name);
         assert!(tar_success, "failed to create tar file");
-        println!("Tar file ready at: {}", tar_file.to_str().unwrap());
+        let tar_file_str = tar_file.to_str().unwrap();
+        println!("Tar file ready at: {tar_file_str}");
 
         self.command
             .arg("--initial-files")
@@ -354,7 +355,8 @@ fn has_origin_in_libs(binary_path: &Path) -> bool {
         .expect("Failed to run readelf");
 
     if !output.status.success() {
-        eprintln!("Warning: readelf failed for {}", binary_path.display());
+        let binary_path_display = binary_path.display();
+        eprintln!("Warning: readelf failed for {binary_path_display}");
         return false;
     }
 
@@ -537,7 +539,8 @@ fn test_runner_with_shell() {
         return;
     }
 
-    println!("Testing shell execution with: {}", sh_path.display());
+    let sh_path_display = sh_path.display();
+    println!("Testing shell execution with: {sh_path_display}");
 
     // Try to run a simple echo command
     let output = Runner::new(Backend::Rewriter, &sh_path, "shell_rewriter")
@@ -596,7 +599,8 @@ fn test_runner_with_bash() {
         return;
     }
 
-    println!("Testing bash execution with: {}", bash_path.display());
+    let bash_path_display = bash_path.display();
+    println!("Testing bash execution with: {bash_path_display}");
 
     // Test bash with a simple command first
     let script = r#"echo "Hello from bash in LiteBox""#;
@@ -622,7 +626,8 @@ fn test_runner_with_node() {
         return;
     }
 
-    println!("Testing Node.js execution with: {}", node_path.display());
+    let node_path_display = node_path.display();
+    println!("Testing Node.js execution with: {node_path_display}");
 
     // Test Node.js with a simple script
     let script = r"console.log('Hello from Node.js in LiteBox!');";
