@@ -108,6 +108,70 @@ git clone https://github.com/anthropics/skills.git /tmp/skills
 - Summary of passed/failed tests
 - Detailed error information for failures
 
+### test_skill_creator.sh (NEW!)
+
+**Purpose:** Focused test for skill-creator skill (Tier 1 - Quick Win)
+
+**Status:** Ready to run (requires built tools)
+
+**Usage:**
+```bash
+# Run all skill-creator tests
+./test_skill_creator.sh
+
+# Verbose output
+./test_skill_creator.sh --verbose
+```
+
+**What it tests:**
+- `quick_validate.py` - Validates skill structure
+- `init_skill.py` - Creates new skill from template
+- `package_skill.py` - Packages skill into .skill zip
+
+**Why this matters:**
+- First real Anthropic skill test
+- Only needs PyYAML (pure Python package)
+- Proves that Python skills with simple dependencies work
+- Foundation for testing more complex skills
+
+**Requirements:**
+- Built `litebox_syscall_rewriter`
+- Built `litebox_runner_linux_userland`
+- Python 3 with PyYAML (`pip install PyYAML`)
+
+**Expected Result:**
+All scripts should run successfully, demonstrating that Python skills with pure-Python dependencies work in LiteBox.
+
+### test_algorithmic_art.sh (NEW!)
+
+**Purpose:** Test algorithmic-art skill (Tier 1 - Node.js)
+
+**Status:** Ready to run (requires built tools)
+
+**Usage:**
+```bash
+# Run algorithmic-art test
+./test_algorithmic_art.sh
+
+# Verbose output
+./test_algorithmic_art.sh --verbose
+```
+
+**What it tests:**
+- `generator_template.js` - P5.js generative art template
+
+**Why this matters:**
+- Confirms Node.js skills work (already proven in unit tests)
+- Real-world validation with Anthropic skill
+- No external dependencies needed
+
+**Requirements:**
+- Built `litebox_runner_linux_userland`
+- Node.js installed
+
+**Expected Result:**
+Script should execute successfully, confirming Node.js support is production-ready.
+
 ### prepare_python_skill.py
 
 **Purpose:** Basic Python skill preparation (legacy)
