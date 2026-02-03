@@ -648,10 +648,9 @@ fn test_runner_with_shell_script_ls() {
 }
 
 /// Test bash shell with advanced features
-/// Note: Bash requires getpgrp syscall and ioctl which are not yet implemented
+/// Note: Bash now has basic support with getpgrp implemented. Some ioctl operations may still be missing.
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 #[test]
-#[ignore = "Bash requires unimplemented syscalls (getpgrp, ioctl)"]
 fn test_runner_with_bash() {
     let bash_path = run_which("bash");
 
