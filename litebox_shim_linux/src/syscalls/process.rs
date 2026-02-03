@@ -1148,8 +1148,20 @@ impl Task {
         self.pid
     }
 
+    /// Handle syscall `getppid`.
     pub(crate) fn sys_getppid(&self) -> i32 {
         self.ppid
+    }
+
+    /// Handle syscall `getpgrp`.
+    ///
+    /// Returns the process group ID. For simplicity, this implementation returns
+    /// the process ID, which is the default behavior for a process that hasn't
+    /// explicitly joined another process group via `setpgid`.
+    pub(crate) fn sys_getpgrp(&self) -> i32 {
+        // In a full implementation, we'd track pgid separately. For now, return pid
+        // which is the default pgid for a new process.
+        self.pid
     }
 
     /// Handle syscall `getuid`.

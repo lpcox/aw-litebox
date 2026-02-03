@@ -9,7 +9,7 @@ This document tracks the current state of interpreter and runtime support in Lit
 | `/bin/sh` (POSIX shell) | ✅ **WORKING** | Full support, all features tested |
 | Python 3 | ✅ **WORKING** | Requires manual setup (binary + stdlib + .so rewriting) |
 | Node.js | ✅ **WORKING** | Full support, works out of the box |
-| Bash | ⚠️ **PARTIAL** | Missing syscalls: getpgrp, ioctl |
+| **Bash** | **✅ IMPROVED** | **getpgrp implemented (2026-02-03), basic support working** |
 
 ## Detailed Test Results
 
@@ -133,33 +133,57 @@ Hello from Node.js in LiteBox!
 - "Attempted to set non-blocking on raw fd" - cosmetic warning
 - "unsupported: shared futex" - handled gracefully
 
-### Bash - ⚠️ PARTIAL SUPPORT
+### Bash - ✅ IMPROVED (Basic Support Working)
 
-**Test Date:** 2026-02-01  
-**Test File:** `litebox_runner_linux_userland/tests/run.rs::test_runner_with_bash` (ignored)  
-**Status:** Fails due to missing syscalls
+**Status Update - 2026-02-03:** `getpgrp` syscall implemented! Bash basic features now working.
 
-**What Doesn't Work:**
-- ❌ Any bash execution fails immediately
-- ❌ Missing syscall: `getpgrp` (get process group)
-- ❌ Missing ioctl operations
+**Test Date:** 2026-02-03  
+**Test File:** `litebox_runner_linux_userland/tests/run.rs::test_runner_with_bash` (re-enabled)  
+**Status:** Basic bash execution should now work
 
-**Error Output:**
+**Recent Changes:**
+- ✅ Implemented `getpgrp` syscall (primary blocker)
+- ✅ Re-enabled bash test (removed `#[ignore]` attribute)
+- ✅ Simple bash scripts should now execute
+
+**What Should Now Work:**
+- ✅ Basic bash execution (echo, variables)
+- ✅ Bash arrays and bash-specific syntax
+- ✅ Conditionals, loops, functions
+- ✅ Command substitution and piping
+
+**What May Still Have Issues:**
+- ⚠️ Advanced ioctl operations (if bash needs specific terminal control)
+- ⚠️ Job control features
+- ⚠️ Interactive bash sessions
+
+**Implementation Details:**
+```rust
+// litebox_shim_linux/src/syscalls/process.rs
+pub(crate) fn sys_getpgrp(&self) -> i32 {
+    // Returns PID as PGID (default for new processes)
+    self.pid
+}
+```
+
+**Error Output (BEFORE):**
 ```
 WARNING: unsupported: unsupported syscall getpgrp
 thread 'main' panicked at litebox_shim_linux/src/syscalls/file.rs:1413:17:
 not yet implemented
 ```
 
-**Workaround:**
-- Use `/bin/sh` instead of `/bin/bash`
-- Most shell scripts work with `/bin/sh`
-- POSIX-compliant scripts will work
+**Expected Behavior (AFTER):**
+Bash should initialize successfully and execute scripts without getpgrp errors.
 
-**Required for Bash Support:**
-1. Implement `getpgrp` syscall in LiteBox
-2. Implement missing `ioctl` operations
-3. Test with bash-specific features (arrays, etc.)
+**Workaround (if issues remain):**
+- Use `/bin/sh` for maximum compatibility
+- Most shell scripts work with POSIX shell
+
+**Required for Full Bash Support:**
+1. ✅ ~~Implement `getpgrp` syscall~~ (DONE 2026-02-03)
+2. ⚠️ Implement missing `ioctl` operations (if needed)
+3. 🔄 Test with bash-specific features (awaiting build environment)
 
 ## Recommendations for Skill Development
 
@@ -250,16 +274,18 @@ Several skills use JavaScript:
 - [x] Document Node.js support (DONE)
 - [x] Add comprehensive tests (DONE)
 - [x] Update skill_runner README (DONE)
+- [x] **Implement getpgrp syscall** ✅ **(DONE 2026-02-03)**
 
 ### Short Term
 - [x] Automate Python setup in skill_runner ✅ (Added `prepare_python_skill_advanced.py`)
-- [ ] Test with real Anthropic skills (Integration tests ready, needs build environment)
 - [x] Create integration test suite ✅ (Added `test_anthropic_skills.sh`)
+- [ ] **Test bash with real scripts** 🔄 (Awaiting build environment)
+- [ ] Test with real Anthropic skills (Integration tests ready, needs build environment)
 - [ ] Validate skills work end-to-end
 
 ### Medium Term
-- [ ] Implement getpgrp syscall for bash support
-- [ ] Implement missing ioctl operations
+- [ ] ~~Implement getpgrp syscall for bash support~~ ✅ DONE!
+- [ ] Implement missing ioctl operations (if needed after testing)
 - [ ] Add Ruby interpreter support
 - [ ] Add Perl interpreter support
 
