@@ -214,10 +214,10 @@ After implementing changes:
 ### Analysis Document (Always Created)
 Create or update `litebox_skill_runner/GVISOR_SYSCALL_ANALYSIS.md`:
 ```markdown
-# gVisor Syscall Analysis - YYYY-MM-DD
+# gVisor Syscall Analysis - 2026-02-04
 
 ## Summary
-[High-level summary of findings]
+[High-level summary of findings - use the actual current date in YYYY-MM-DD format]
 
 ## Syscall Coverage Matrix
 | Syscall | LiteBox Status | gVisor Test | Priority | Notes |
@@ -238,9 +238,9 @@ Create or update `litebox_skill_runner/GVISOR_SYSCALL_ANALYSIS.md`:
 ```
 
 ### Evaluation Document (If Changes Made)
-Create `litebox_skill_runner/EVALUATION_YYYY-MM-DD.md`:
+Create `litebox_skill_runner/EVALUATION_YYYY-MM-DD.md` (replace YYYY-MM-DD with actual date, e.g., `EVALUATION_2026-02-04.md`):
 ```markdown
-# Evaluation - YYYY-MM-DD
+# Evaluation - February 4, 2026
 
 ## gVisor Syscall Testing Analysis
 

@@ -332,8 +332,8 @@ A new automated workflow (`.github/workflows/nightly-gvisor-tests.md`) runs dail
 - **Automated**: Runs nightly without manual intervention
 
 **Outputs:**
-- `litebox_skill_runner/GVISOR_SYSCALL_ANALYSIS.md` - Coverage analysis
-- `litebox_skill_runner/EVALUATION_YYYY-MM-DD.md` - Daily progress reports
+- `litebox_skill_runner/GVISOR_SYSCALL_ANALYSIS.md` - Coverage analysis (updated with current date)
+- `litebox_skill_runner/EVALUATION_YYYY-MM-DD.md` - Daily progress reports (filename uses actual date, e.g., `EVALUATION_2026-02-04.md`)
 - Pull requests with syscall fixes and improvements
 
 This workflow ensures LiteBox maintains comprehensive syscall support as new skills and use cases emerge.
