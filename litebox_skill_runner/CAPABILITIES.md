@@ -312,6 +312,32 @@ Several skills use JavaScript:
 
 **Note:** First execution includes syscall rewriter overhead. Subsequent runs use cached rewritten binaries.
 
+## Automated Syscall Testing
+
+### Nightly gVisor Tests Workflow
+
+A new automated workflow (`.github/workflows/nightly-gvisor-tests.md`) runs daily to ensure complete syscall coverage:
+
+**What it does:**
+- 🔍 Analyzes which syscalls are needed for skill execution
+- 📊 Documents coverage gaps using gVisor's comprehensive syscall test suite
+- 🛠️ Identifies missing or incomplete syscall implementations
+- 🤖 Creates PRs with fixes and detailed analysis
+- 📈 Tracks syscall coverage progress over time
+
+**Benefits:**
+- **Proactive**: Identifies syscall gaps before they block skills
+- **Comprehensive**: Leverages gVisor's extensive Linux syscall tests
+- **Documented**: Creates detailed analysis files and progress reports
+- **Automated**: Runs nightly without manual intervention
+
+**Outputs:**
+- `litebox_skill_runner/GVISOR_SYSCALL_ANALYSIS.md` - Coverage analysis
+- `litebox_skill_runner/EVALUATION_YYYY-MM-DD.md` - Daily progress reports
+- Pull requests with syscall fixes and improvements
+
+This workflow ensures LiteBox maintains comprehensive syscall support as new skills and use cases emerge.
+
 ## Conclusion
 
 **LiteBox is now capable of running shell scripts and Node.js!** This is a significant milestone. The main remaining work is:
@@ -320,4 +346,4 @@ Several skills use JavaScript:
 2. **Adding bash syscalls** - Enable bash-specific features
 3. **Testing with real skills** - Validate with Anthropic skills repository
 
-The foundation is solid and the path forward is clear.
+The foundation is solid and the path forward is clear. The new gVisor testing workflow will proactively ensure syscall completeness.
