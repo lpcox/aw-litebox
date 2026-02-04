@@ -516,7 +516,9 @@ fn test_tun_with_tcp_socket() {
 #[test]
 fn test_tun_and_runner_with_iperf3() {
     let Some(iperf3_path) = try_which("iperf3") else {
-        println!("Skipping test: iperf3 not found (install with: sudo apt install -y iperf3)");
+        println!("Skipping test: iperf3 not found");
+        println!("  On Debian/Ubuntu: sudo apt install -y iperf3");
+        println!("  On RHEL/Fedora: sudo dnf install -y iperf3");
         return;
     };
     const NUM_CLIENTS: usize = 1;

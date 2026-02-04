@@ -1276,7 +1276,10 @@ impl Task {
             }
             IoctlArg::TCSETS(_) => Ok(0), // TODO: implement
             IoctlArg::TIOCGPGRP(pgrp) => {
-                // Return the process group ID. In LiteBox, we use the process ID as the process group ID.
+                // Get the process group ID of the foreground process group on the terminal.
+                // In LiteBox, processes are simplified: each process forms its own process group
+                // where the process group ID equals the process ID. This is a simplification
+                // compared to standard Unix where processes can explicitly join different groups.
                 let pid = self.sys_getpid() as i32;
                 pgrp.write_at_offset(0, pid).ok_or(Errno::EFAULT)?;
                 Ok(0)
