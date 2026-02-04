@@ -515,13 +515,13 @@ fn test_tun_with_tcp_socket() {
 #[cfg(target_arch = "x86_64")]
 #[test]
 fn test_tun_and_runner_with_iperf3() {
+    const NUM_CLIENTS: usize = 1;
     let Some(iperf3_path) = try_which("iperf3") else {
         println!("Skipping test: iperf3 not found");
         println!("  On Debian/Ubuntu: sudo apt install -y iperf3");
         println!("  On RHEL/Fedora: sudo dnf install -y iperf3");
         return;
     };
-    const NUM_CLIENTS: usize = 1;
     let cloned_path = iperf3_path.clone();
     let has_started = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let has_started_clone = has_started.clone();
