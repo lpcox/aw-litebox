@@ -264,6 +264,7 @@ fn run_which(prog: &str) -> std::path::PathBuf {
     prog_path
 }
 
+#[cfg(target_arch = "x86_64")]
 fn try_which(prog: &str) -> Option<std::path::PathBuf> {
     let output = std::process::Command::new("which")
         .arg(prog)
