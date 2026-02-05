@@ -187,6 +187,26 @@ Bash should initialize successfully and execute scripts without getpgrp errors.
 
 ## Recommendations for Skill Development
 
+### Quick Reference Guides 📚
+
+**New to Python in LiteBox?** → Read **[PYTHON_SETUP_GUIDE.md](PYTHON_SETUP_GUIDE.md)**
+- Quick start with automation script
+- Step-by-step manual setup
+- Real skill examples (skill-creator, pdf, docx)
+- Comprehensive troubleshooting
+
+**Want to test Anthropic skills?** → Read **[SKILLS_TESTING_PLAN.md](SKILLS_TESTING_PLAN.md)**
+- Systematic testing methodology
+- Tier 1-3 skill priorities
+- Test cases for each skill
+- Bug reporting templates
+
+**Implementing missing syscalls?** → Read **[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md#detailed-syscall-implementation-roadmap)**
+- Detailed fork/wait implementation
+- Process group management
+- Code examples and testing strategies
+- gVisor integration guidance
+
 ### Python Automation Tools (NEW!)
 
 **For automated Python skill preparation, use:**
@@ -205,6 +225,8 @@ Bash should initialize successfully and execute scripts without getpgrp errors.
 # 4. Generates ready-to-use command examples
 ```
 
+See **[PYTHON_SETUP_GUIDE.md](PYTHON_SETUP_GUIDE.md)** for detailed usage and troubleshooting.
+
 **For integration testing with real Anthropic skills:**
 
 ```bash
@@ -214,6 +236,8 @@ Bash should initialize successfully and execute scripts without getpgrp errors.
 # Test all skills
 ./litebox_skill_runner/examples/test_anthropic_skills.sh --all
 ```
+
+See **[SKILLS_TESTING_PLAN.md](SKILLS_TESTING_PLAN.md)** for comprehensive testing methodology.
 
 ### For Maximum Compatibility
 

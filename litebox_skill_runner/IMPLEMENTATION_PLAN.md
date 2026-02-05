@@ -366,3 +366,590 @@ Some skills need system binaries:
 **Blockers:** CI environment lacks Rust/cargo toolchain
 
 **Recommendation:** Enable Rust in CI or test in development environment
+
+---
+
+## Detailed Syscall Implementation Roadmap
+
+**Last Updated:** 2026-02-05  
+**Based on:** gVisor syscall analysis (GVISOR_SYSCALL_ANALYSIS.md)
+
+This section provides detailed implementation guidance for missing syscalls that block skill execution.
+
+### Priority 1: Fork/Wait Family (HIGHEST IMPACT)
+
+**Impact:** Critical for shell scripts that spawn and wait for child processes  
+**Complexity:** Medium  
+**Time Estimate:** 1-2 days  
+**Skills Unblocked:** 2-3 shell-based skills
+
+#### 1.1 fork() - Process Creation
+
+**Location:** `litebox_shim_linux/src/syscalls/process.rs`
+
+**Implementation:**
+``````rust
+/// Implements fork() as a wrapper around clone() with SIGCHLD
+/// Returns child PID in parent process, 0 in child process
+pub(crate) fn sys_fork(&self) -> Result<i32, i32> {
+    // fork is clone with SIGCHLD and no shared memory/resources
+    const SIGCHLD: u64 = 17;
+    
+    // Call existing clone implementation with minimal flags
+    self.sys_clone(
+        SIGCHLD,           // flags: just send SIGCHLD to parent on exit
+        0,                 // child_stack: NULL (use parent's stack copy)
+        0,                 // ptid: NULL
+        0,                 // ctid: NULL  
+        0                  // newtls: NULL
+    )
+}
+``````
+
+**Key Points:**
+- fork() is essentially clone() with just SIGCHLD flag
+- LiteBox already has clone() implementation
+- Child gets copy of parent's memory and file descriptors
+- Returns twice: parent gets child PID, child gets 0
+
+**Testing:**
+``````rust
+#[test]
+fn test_fork_basic() {
+    let pid = unsafe { libc::fork() };
+    
+    if pid == 0 {
+        // Child process
+        println!("Child process");
+        std::process::exit(0);
+    } else {
+        // Parent process
+        println!("Parent process, child PID: {}", pid);
+        let mut status = 0;
+        unsafe { libc::waitpid(pid, &mut status, 0) };
+    }
+}
+``````
+
+#### 1.2 wait4() - Wait for Child Process
+
+**Location:** `litebox_shim_linux/src/syscalls/process.rs`
+
+**Implementation:**
+``````rust
+/// Wait for child process state change with resource usage
+/// Returns child PID when ready, -1 on error
+pub(crate) fn sys_wait4(
+    &self,
+    pid: i32,              // PID to wait for (-1 = any child)
+    status: *mut i32,      // Exit status output
+    options: i32,          // WNOHANG, WUNTRACED, etc.
+    rusage: *mut libc::rusage  // Resource usage output (can be NULL)
+) -> Result<i32, i32> {
+    // Get process table lock
+    let mut proc_table = self.process_table.lock().unwrap();
+    
+    // Find matching child process
+    let child_pid = if pid == -1 {
+        // Wait for any child
+        proc_table.find_any_child(self.pid)
+    } else if pid == 0 {
+        // Wait for any child in same process group
+        proc_table.find_child_in_pgid(self.pgid)
+    } else if pid > 0 {
+        // Wait for specific child
+        Some(pid)
+    } else {
+        // Wait for any child in specific process group
+        proc_table.find_child_in_pgid(-pid)
+    };
+    
+    match child_pid {
+        Some(cpid) => {
+            // Check if child has exited
+            let child = proc_table.get(cpid)?;
+            
+            if child.has_exited() {
+                // Get exit status
+                let exit_code = child.exit_code();
+                
+                // Write status if requested
+                if !status.is_null() {
+                    unsafe { *status = exit_code << 8; }  // WIFEXITED format
+                }
+                
+                // Write rusage if requested
+                if !rusage.is_null() {
+                    unsafe { 
+                        (*rusage).ru_utime = child.user_time();
+                        (*rusage).ru_stime = child.sys_time();
+                        // ... other rusage fields
+                    }
+                }
+                
+                // Remove child from process table
+                proc_table.remove(cpid);
+                
+                Ok(cpid)
+            } else if options & libc::WNOHANG != 0 {
+                // Non-blocking, child not ready
+                Ok(0)
+            } else {
+                // Blocking: wait for child to exit
+                // This is tricky - need to yield and retry
+                Err(-libc::EAGAIN)
+            }
+        }
+        None => {
+            // No matching child found
+            Err(-libc::ECHILD)
+        }
+    }
+}
+``````
+
+**Key Points:**
+- Need to track child processes in process table
+- Handle various pid values: -1 (any), 0 (same pgid), >0 (specific), <-1 (pgid)
+- Support WNOHANG for non-blocking wait
+- Return exit status in special format (shifted left 8 bits)
+- rusage can be NULL (optional)
+
+**Data Structures Needed:**
+``````rust
+// In process.rs or shared state
+pub struct ProcessTable {
+    processes: HashMap<i32, ProcessInfo>,
+}
+
+pub struct ProcessInfo {
+    pid: i32,
+    ppid: i32,
+    pgid: i32,
+    exited: bool,
+    exit_code: i32,
+    user_time: libc::timeval,
+    sys_time: libc::timeval,
+}
+``````
+
+#### 1.3 waitpid() - Simplified Wait
+
+**Location:** `litebox_shim_linux/src/syscalls/process.rs`
+
+**Implementation:**
+``````rust
+/// Simplified wait - wrapper around wait4 with NULL rusage
+pub(crate) fn sys_waitpid(
+    &self,
+    pid: i32,
+    status: *mut i32,
+    options: i32
+) -> Result<i32, i32> {
+    self.sys_wait4(pid, status, options, std::ptr::null_mut())
+}
+``````
+
+**Key Points:**
+- Simple wrapper around wait4
+- Most commonly used wait variant
+
+#### 1.4 waitid() - Flexible Wait (Optional)
+
+**Location:** `litebox_shim_linux/src/syscalls/process.rs`
+
+**Priority:** Medium (implement if time permits)
+
+**Implementation:**
+``````rust
+/// More flexible wait with siginfo_t output
+pub(crate) fn sys_waitid(
+    &self,
+    idtype: i32,           // P_PID, P_PGID, P_ALL
+    id: i32,               // PID or PGID
+    infop: *mut libc::siginfo_t,  // siginfo output
+    options: i32           // WEXITED, WSTOPPED, etc.
+) -> Result<i32, i32> {
+    // Similar to wait4 but with different output format
+    // Use siginfo_t instead of simple status int
+    // ...
+}
+``````
+
+#### Testing Strategy
+
+**Test 1: Fork and Exit**
+``````bash
+#!/bin/sh
+# Test basic fork+wait pattern
+
+# Create background process
+sleep 1 &
+CHILD_PID=$!
+
+echo "Parent waiting for child $CHILD_PID"
+wait $CHILD_PID
+echo "Child finished, exit code: $?"
+``````
+
+**Test 2: Multiple Children**
+``````bash
+#!/bin/sh
+# Test waiting for multiple children
+
+sleep 1 &
+sleep 1 &
+sleep 1 &
+
+wait  # Wait for all children
+echo "All children finished"
+``````
+
+**Test 3: Non-blocking Wait**
+``````c
+// Test WNOHANG flag
+int pid = fork();
+if (pid == 0) {
+    sleep(2);
+    exit(42);
+}
+
+// Try non-blocking wait
+int status;
+int ret = waitpid(pid, &status, WNOHANG);
+assert(ret == 0);  // Child not ready yet
+
+// Now block until ready
+ret = waitpid(pid, &status, 0);
+assert(ret == pid);
+assert(WEXITSTATUS(status) == 42);
+``````
+
+---
+
+### Priority 2: Process Group Management (MEDIUM IMPACT)
+
+**Impact:** Enables bash job control (bg, fg, jobs commands)  
+**Complexity:** Low-Medium  
+**Time Estimate:** 4-6 hours  
+**Skills Unblocked:** Advanced bash features
+
+#### 2.1 setpgid() - Set Process Group ID
+
+**Location:** `litebox_shim_linux/src/syscalls/process.rs`
+
+**Implementation:**
+``````rust
+/// Set process group ID for a process
+/// Used for job control and signal management
+pub(crate) fn sys_setpgid(&self, pid: i32, pgid: i32) -> Result<i32, i32> {
+    let target_pid = if pid == 0 { self.pid } else { pid };
+    let target_pgid = if pgid == 0 { target_pid } else { pgid };
+    
+    // Get process table
+    let mut proc_table = self.process_table.lock().unwrap();
+    
+    // Validate target process exists and is child or self
+    let proc = proc_table.get_mut(target_pid)
+        .ok_or(-libc::ESRCH)?;
+    
+    // Can only set pgid for self or children
+    if target_pid != self.pid && proc.ppid != self.pid {
+        return Err(-libc::EPERM);
+    }
+    
+    // Update process group ID
+    proc.pgid = target_pgid;
+    
+    Ok(0)
+}
+``````
+
+**Key Points:**
+- pid == 0 means current process
+- pgid == 0 means use pid as pgid (create new group)
+- Only allowed to set pgid for self or direct children
+- Used by shells for job control
+
+#### 2.2 getpgid() - Get Process Group ID
+
+**Location:** `litebox_shim_linux/src/syscalls/process.rs`
+
+**Implementation:**
+``````rust
+/// Get process group ID for a process
+pub(crate) fn sys_getpgid(&self, pid: i32) -> Result<i32, i32> {
+    let target_pid = if pid == 0 { self.pid } else { pid };
+    
+    let proc_table = self.process_table.lock().unwrap();
+    let proc = proc_table.get(target_pid)
+        .ok_or(-libc::ESRCH)?;
+    
+    Ok(proc.pgid)
+}
+``````
+
+**Note:** getpgrp() (already implemented) is just getpgid(0)
+
+#### 2.3 setsid() - Create New Session
+
+**Location:** `litebox_shim_linux/src/syscalls/process.rs`
+
+**Implementation:**
+``````rust
+/// Create new session and process group
+/// Used by daemons and terminal session leaders
+pub(crate) fn sys_setsid(&self) -> Result<i32, i32> {
+    let mut proc_table = self.process_table.lock().unwrap();
+    let proc = proc_table.get_mut(self.pid)
+        .ok_or(-libc::ESRCH)?;
+    
+    // Cannot call setsid if already a process group leader
+    if proc.pgid == self.pid {
+        return Err(-libc::EPERM);
+    }
+    
+    // Create new session and process group with same ID as PID
+    proc.sid = self.pid;
+    proc.pgid = self.pid;
+    
+    // Detach from controlling terminal (if any)
+    proc.ctty = None;
+    
+    Ok(self.pid)
+}
+``````
+
+**Key Points:**
+- Creates new session (sid) and process group (pgid)
+- Both set to calling process's PID
+- Detaches from controlling terminal
+- Commonly used by daemons
+
+#### 2.4 getsid() - Get Session ID
+
+**Location:** `litebox_shim_linux/src/syscalls/process.rs`
+
+**Implementation:**
+``````rust
+/// Get session ID for a process
+pub(crate) fn sys_getsid(&self, pid: i32) -> Result<i32, i32> {
+    let target_pid = if pid == 0 { self.pid } else { pid };
+    
+    let proc_table = self.process_table.lock().unwrap();
+    let proc = proc_table.get(target_pid)
+        .ok_or(-libc::ESRCH)?;
+    
+    Ok(proc.sid)
+}
+``````
+
+#### Testing Strategy
+
+**Test 1: Process Group Creation**
+``````c
+// Create new process group
+setpgid(0, 0);
+assert(getpgid(0) == getpid());
+``````
+
+**Test 2: Session Creation**
+``````c
+// Fork and create new session in child
+int pid = fork();
+if (pid == 0) {
+    int sid = setsid();
+    assert(sid == getpid());
+    assert(getsid(0) == getpid());
+    exit(0);
+}
+``````
+
+**Test 3: Bash Job Control**
+``````bash
+#!/bin/bash
+# Test job control features
+
+sleep 10 &
+jobs  # Should show background job
+bg %1
+fg %1  # Bring to foreground
+``````
+
+---
+
+### Priority 3: Additional Process Management (LOW-MEDIUM)
+
+#### 3.1 getppid() - Get Parent PID
+
+**Status:** ✅ Already implemented (confirmed in GVISOR_SYSCALL_ANALYSIS.md)
+
+#### 3.2 exit_group() - Exit All Threads
+
+**Status:** ✅ Already implemented
+
+#### 3.3 clone() Flags Enhancement
+
+**Current:** Basic clone support exists  
+**Enhancement:** Ensure all common flags supported
+- CLONE_VM (share memory)
+- CLONE_FS (share filesystem info)
+- CLONE_FILES (share file descriptor table)
+- CLONE_SIGHAND (share signal handlers)
+- CLONE_THREAD (create thread not process)
+
+---
+
+### Priority 4: Signal Handling Gaps (LOW)
+
+Most signal syscalls implemented. Review if any edge cases needed for skills.
+
+---
+
+### Testing Integration
+
+#### Unit Tests
+
+Add to `litebox_shim_linux/src/syscalls/process.rs`:
+
+``````rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_fork_basic() {
+        // Test basic fork functionality
+    }
+    
+    #[test]
+    fn test_wait_for_child() {
+        // Test wait4 with exited child
+    }
+    
+    #[test]
+    fn test_process_groups() {
+        // Test setpgid/getpgid
+    }
+    
+    #[test]
+    fn test_session_creation() {
+        // Test setsid/getsid
+    }
+}
+``````
+
+#### Integration Tests
+
+Add to `litebox_runner_linux_userland/tests/`:
+
+``````rust
+#[test]
+fn test_shell_fork_wait() {
+    // Test shell script with background processes
+    let script = r#"
+        #!/bin/sh
+        sleep 1 &
+        CHILD_PID=$!
+        wait $CHILD_PID
+        echo "Child finished"
+    "#;
+    
+    // Run and verify output
+}
+
+#[test]
+fn test_bash_job_control() {
+    // Test bash job control features
+    let script = r#"
+        #!/bin/bash
+        sleep 1 &
+        jobs
+    "#;
+    
+    // Run and verify jobs output
+}
+``````
+
+#### gVisor Tests
+
+Run relevant gVisor tests after implementation:
+
+``````bash
+# Clone gVisor (for reference)
+git clone https://github.com/google/gvisor.git /tmp/gvisor
+
+# Identify tests to run
+/tmp/gvisor/test/syscalls/linux/fork.cc
+/tmp/gvisor/test/syscalls/linux/wait.cc
+/tmp/gvisor/test/syscalls/linux/setpgid.cc
+/tmp/gvisor/test/syscalls/linux/setsid.cc
+
+# Build and run tests (requires setup)
+# Document pass/fail results
+``````
+
+---
+
+### Implementation Timeline
+
+**Week 1: Fork/Wait (Priority 1)**
+- Day 1-2: Implement fork(), wait4(), waitpid()
+- Day 3: Add process table tracking
+- Day 4-5: Testing and debugging
+
+**Week 2: Process Groups (Priority 2)**
+- Day 1-2: Implement setpgid(), getpgid()
+- Day 2-3: Implement setsid(), getsid()
+- Day 4-5: Testing with bash job control
+
+**Week 3: Integration Testing**
+- Test with real shell scripts
+- Test Anthropic skills that use fork/wait
+- Document results
+- Fix any issues
+
+---
+
+### Success Metrics
+
+**Fork/Wait Implementation:**
+- ✅ Unit tests pass
+- ✅ Integration tests pass
+- ✅ Shell scripts with background processes work
+- ✅ No "unsupported syscall" errors for fork/wait
+
+**Process Group Implementation:**
+- ✅ Unit tests pass
+- ✅ Bash job control commands work (bg, fg, jobs)
+- ✅ Process group isolation working
+- ✅ No session/pgid errors
+
+**Overall:**
+- ✅ Bash coverage: 90% → 98%
+- ✅ Skills unblocked: +2-3 shell-based skills
+- ✅ gVisor test pass rate: +10-15%
+
+---
+
+### Reference Documentation
+
+**Linux Man Pages:**
+- `man 2 fork`
+- `man 2 wait4`
+- `man 2 waitpid`
+- `man 2 setpgid`
+- `man 2 setsid`
+
+**gVisor Implementation:**
+- https://github.com/google/gvisor/blob/master/pkg/sentry/syscalls/linux/sys_thread.go
+
+**LiteBox Current Code:**
+- `litebox_shim_linux/src/syscalls/process.rs` - Process syscalls
+- `litebox_shim_linux/src/syscalls/` - Other syscall categories
+
+---
+
+**Roadmap Version:** 1.0  
+**Created:** 2026-02-05  
+**Next Update:** After fork/wait implementation complete
