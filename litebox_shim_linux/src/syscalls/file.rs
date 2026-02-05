@@ -1278,8 +1278,7 @@ impl Task {
             IoctlArg::TIOCGPGRP(pgrp) => {
                 // Return the process group ID. For now, we return the process ID
                 // as we don't have full process group support.
-                pgrp.write_at_offset(0, self.pid)
-                    .ok_or(Errno::EFAULT)?;
+                pgrp.write_at_offset(0, self.pid).ok_or(Errno::EFAULT)?;
                 Ok(0)
             }
             IoctlArg::TIOCSPGRP(_pgrp) => {
