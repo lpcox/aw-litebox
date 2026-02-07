@@ -7,6 +7,14 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+steps:
+  - name: Set up Rust toolchain
+    run: |
+      rustup toolchain install stable --profile minimal --no-self-update --component rustfmt,clippy --target x86_64-unknown-linux-gnu
+  - name: Set up Nextest
+    uses: taiki-e/install-action@v2
+    with:
+      tool: nextest@0.9.114
 tools:
   github:
     toolsets: [default]
