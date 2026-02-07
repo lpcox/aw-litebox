@@ -21,7 +21,7 @@
 #
 # Autonomous agent that implements support for shell scripts, Node.js, and Python in LiteBox to run all Anthropic skills. Runs four times per day with a full rust/crate development environment and GitHub integration for PR creation and commenting.
 #
-# frontmatter-hash: 1f7d6f016490b380ba8ed5e85dfd67f3c96fd298525fc58aed44cba9b1d59424
+# frontmatter-hash: 685e2e98049ad9111b44fcc8485b35e22292ba21e76dc0b09ef9b71ca4ef41a7
 
 name: "Litebox Skills"
 "on":
@@ -102,7 +102,7 @@ jobs:
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Set up Rust toolchain
         run: |
-          rustup toolchain install $(awk -F'"' '/channel/{print $2}' rust-toolchain.toml) --profile minimal --no-self-update --component rustfmt,clippy --target x86_64-unknown-linux-gnu
+          rustup toolchain install stable --profile minimal --no-self-update --component rustfmt,clippy --target x86_64-unknown-linux-gnu
       - name: Set up Nextest
         uses: taiki-e/install-action@v2
         with:
