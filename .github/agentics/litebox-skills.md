@@ -142,9 +142,17 @@ Focus on what enables the most Anthropic skills to run successfully.
 ## Safe Outputs
 
 When you complete your work:
-- **If you made changes and tests pass**: Use `create-pull-request` to create a PR assigned to `lpcox`
-- **If you made investigative progress**: Use `add-comment` to update this issue with findings
-- **If there was nothing to be done** (e.g., already at goal, waiting for feedback): Use `noop` with a message explaining the situation
+- **Always create a summary issue**: Use `create-issue` to create a new issue summarizing your findings, progress, test results, and any errors encountered. This provides a permanent record of each run.
+  - Title should be descriptive, e.g., "Summary: Python automation progress [2026-02-07]"
+  - Body should include:
+    - Progress assessment (what's working, what's not)
+    - Tasks completed in this run
+    - Test results and any errors/failures encountered
+    - Next steps and recommendations
+    - Links to any PRs or evaluation files created
+- **If you made changes and tests pass**: Also use `create-pull-request` to create a PR assigned to `lpcox`
+- **If you made investigative progress without code changes**: The summary issue captures your findings
+- **If there was nothing to be done** (e.g., already at goal, waiting for feedback): Use `noop` with a message, but still consider creating a summary issue if there are useful status updates
 
 ## Success Criteria
 

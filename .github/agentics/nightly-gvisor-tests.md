@@ -263,9 +263,18 @@ Create `litebox_skill_runner/EVALUATION_YYYY-MM-DD.md` (replace YYYY-MM-DD with 
 ## Safe Outputs
 
 When you complete your work:
-- **If you created analysis/documentation**: Use `create-pull-request` with the analysis and any code changes
-- **If you found issues but made no changes**: Use `add-comment` to report findings
-- **If everything is already covered**: Use `noop` explaining that syscall coverage is complete
+- **Always create a summary issue**: Use `create-issue` to create a new issue summarizing your nightly analysis, findings, and any errors encountered. This provides a permanent record of each nightly run.
+  - Title should be descriptive, e.g., "Nightly Summary: gVisor Syscall Analysis [2026-02-07]"
+  - Body should include:
+    - Analysis summary (syscalls analyzed, gaps identified)
+    - Test results and any errors/failures encountered
+    - Syscalls implemented or fixed (if any)
+    - Coverage status and completeness metrics
+    - Links to any PRs, analysis files, or evaluation documents created
+    - Next steps and priority recommendations
+- **If you created analysis/documentation or code changes**: Also use `create-pull-request` with the analysis and any code changes
+- **If you found issues but made no changes**: The summary issue captures your findings (no need for add-comment)
+- **If everything is already covered**: Use `noop` explaining that syscall coverage is complete, but still consider creating a summary issue for the nightly status report
 
 ## Key Resources
 
