@@ -33,6 +33,11 @@ safe-outputs:
     draft: false
   add-comment:
     max: 2
+  create-issue:
+    title-prefix: "[litebox-skills] "
+    labels: [automation, litebox-skills]
+    assignees: [lpcox]
+    max: 3
   noop:
   missing-tool:
     create-issue: true

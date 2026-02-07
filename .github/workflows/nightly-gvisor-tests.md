@@ -23,6 +23,11 @@ safe-outputs:
     draft: false
   add-comment:
     max: 2
+  create-issue:
+    title-prefix: "[gvisor-tests] "
+    labels: [automation, gvisor-syscall]
+    assignees: [lpcox]
+    max: 3
   noop:
   missing-tool:
     create-issue: true
