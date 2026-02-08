@@ -42,6 +42,7 @@ pub mod skill {
         }
 
         /// Mark skill as having external dependencies
+        #[must_use]
         pub fn with_dependencies(mut self) -> Self {
             self.has_dependencies = true;
             self
@@ -73,10 +74,8 @@ pub mod runner {
         /// Check if this runtime is currently supported
         pub fn is_supported(self) -> bool {
             match self {
-                Runtime::Shell => true,   // /bin/sh works
-                Runtime::Node => true,    // Node.js works
-                Runtime::Python => false, // Needs automation
-                Runtime::Bash => false,   // Missing syscalls
+                Runtime::Shell | Runtime::Node => true, // /bin/sh and Node.js work
+                Runtime::Python | Runtime::Bash => false, // Python needs automation, Bash missing syscalls
             }
         }
     }
