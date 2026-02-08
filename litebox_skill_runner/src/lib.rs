@@ -42,6 +42,7 @@ pub mod skill {
         }
 
         /// Mark skill as having external dependencies
+        #[must_use]
         pub fn with_dependencies(mut self) -> Self {
             self.has_dependencies = true;
             self
