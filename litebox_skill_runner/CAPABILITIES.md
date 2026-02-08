@@ -1,5 +1,8 @@
 # LiteBox Skill Runner Capabilities
 
+**Last Updated:** 2026-02-08  
+**Status:** Based on real Anthropic skills analysis
+
 This document tracks the current state of interpreter and runtime support in LiteBox for running Agent Skills.
 
 ## Summary
