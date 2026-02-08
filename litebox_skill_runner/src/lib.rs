@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+
 //! LiteBox Skill Runner
 //!
 //! This crate provides infrastructure for testing and running Anthropic skills
@@ -42,6 +45,7 @@ pub mod skill {
         }
 
         /// Mark skill as having external dependencies
+        #[must_use]
         pub fn with_dependencies(mut self) -> Self {
             self.has_dependencies = true;
             self
