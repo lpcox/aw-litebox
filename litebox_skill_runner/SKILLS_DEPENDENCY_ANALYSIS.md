@@ -1,9 +1,23 @@
 # Anthropic Skills Dependency Analysis
 
 **Date:** 2026-02-01  
+**Status:** ⚠️ **SUPERSEDED** - See [EVALUATION_2026-02-08_EVENING.md](EVALUATION_2026-02-08_EVENING.md) for latest comprehensive analysis  
 **Purpose:** Analyze all Anthropic skills to determine what's needed for full LiteBox compatibility
 
-## Executive Summary
+---
+
+**📢 Latest Update (2026-02-08):**  
+This document contains outdated analysis. For the most current, evidence-based dependency analysis including:
+- Complete script inventory (68 Python, 2 Bash, 1 JS scripts)
+- Detailed import analysis for all Python skills
+- Skill complexity tiers (Tier 1-3)
+- C extension requirements by skill
+
+**→ See [EVALUATION_2026-02-08_EVENING.md](EVALUATION_2026-02-08_EVENING.md)**
+
+---
+
+## Executive Summary (Historical)
 
 **Total Skills:** 18 directories in https://github.com/anthropics/skills  
 **Scripts Found:** 40+ Python scripts, 1 JavaScript script
