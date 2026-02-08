@@ -73,10 +73,10 @@ pub mod runner {
         /// Check if this runtime is currently supported
         pub fn is_supported(self) -> bool {
             match self {
-                Runtime::Shell => true,   // /bin/sh works
-                Runtime::Node => true,    // Node.js works
-                Runtime::Python => false, // Needs automation
-                Runtime::Bash => false,   // Missing syscalls
+                // /bin/sh works, Node.js works
+                Runtime::Shell | Runtime::Node => true,
+                // Needs automation, Missing syscalls
+                Runtime::Python | Runtime::Bash => false,
             }
         }
     }
