@@ -1,7 +1,6 @@
 # LiteBox Skills Compatibility Matrix
 
-**Date:** 2026-02-02  
-**Status:** ⚠️ **SUPERSEDED** - See [EVALUATION_2026-02-08_EVENING.md](EVALUATION_2026-02-08_EVENING.md) for latest comprehensive analysis  
+**Date:** 2026-02-08  
 **Purpose:** Detailed analysis of Anthropic Skills compatibility with LiteBox
 
 ---
@@ -21,15 +20,36 @@ This document contains outdated analysis. For the most current, evidence-based a
 
 | Category | Count | Expected Success Rate | Status |
 |----------|-------|----------------------|--------|
-| Documentation-only skills | 8 | 100% | ✅ No execution needed |
+| Documentation-only skills | 6 | 100% | ✅ No execution needed |
 | Stdlib-only Python | 1 | 95% | 🟢 Ready to test |
 | Pure Python dependencies | 3-4 | 85% | 🟡 Needs packaging |
-| C extension dependencies | 4-5 | 70% | 🟡 Needs .so rewriting |
-| Complex/Network dependencies | 2-3 | 30% | 🔴 Deferred |
+| C extension dependencies | 4-5 | 70-85% | 🟡 Needs .so rewriting |
+| Complex/Network dependencies | 2 | 30% | 🔴 Deferred |
 | Node.js scripts | 2 | 100% | ✅ Proven working |
-| Shell scripts | 1 | 100% | ✅ Proven working |
+| **Bash scripts** | 2 | **100%** | ✅ **Bash now working!** |
 
-**Overall Predicted Compatibility:** 75-80% of skills should work or nearly work
+**Overall Predicted Compatibility:** **87-94%** of skills should work or nearly work (updated 2026-02-08)
+
+### Compatibility Calculation (Updated 2026-02-08)
+
+**Immediately Working (No changes needed):**
+- 6 documentation-only: 100%
+- 2 bash scripts: **100% (bash support confirmed working!)**
+- 2 Node.js: 100%
+- **Total: 10/16 = 62.5%**
+
+**Working with Python Packaging (High confidence):**
+- 1 skill-creator: 95%
+- 3-4 Python + simple deps: 85%
+- **Total: +4/16 = +25% → 87.5%**
+
+**Working with C Extension Support (Medium confidence):**
+- 3-4 Python + C extensions: 70-85%
+- **Total: +3/16 = +19% → ~94%**
+
+**Blocked (Network/Browser):**
+- 2 complex skills: 30%
+- **Deferred**
 
 ## Skill-by-Skill Analysis
 
