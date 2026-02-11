@@ -20,7 +20,11 @@ Agent Skills are modular packages that extend AI capabilities by providing speci
 - **Python:** Works but requires packaging (see examples/)
 - **Bash:** Fully functional (confirmed 2026-02-08)
 
-**Estimated Anthropic Skills compatibility:** **87-94%** (14-15 out of 16 skills)
+**Estimated Anthropic Skills compatibility:** **50-87.5%** (8-14 out of 16 skills)
+- **Conservative (works today):** 50% (8/16 - docs, shell, Node.js)
+- **Realistic (with Python testing):** 56% (9/16 - add skill-creator)
+- **Optimistic (with effort):** 75% (12/16 - investigate dependencies)
+- **Maximum achievable:** 87.5% (14/16 - all except network and heavy C ext)
 
 ## Current Status
 
