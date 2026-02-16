@@ -1,4 +1,4 @@
-# gVisor Syscall Analysis - 2026-02-08 (Nightly Update)
+# gVisor Syscall Analysis - 2026-02-16 (Nightly Update)
 
 ## Executive Summary
 
@@ -6,11 +6,11 @@ This document analyzes LiteBox's syscall coverage using Google's gVisor test sui
 
 **Key Findings:**
 - **93 syscalls currently implemented** in LiteBox (verified count: comprehensive grep audit of all syscall implementations)
-- **275 gVisor test files** available for validation (complete test suite cloned and cataloged)
+- **277 gVisor test files** available for validation (test suite cloned to `/tmp/gh-aw/agent/gvisor/`)
 - **~90% coverage** for basic skill execution (sh, Node.js, Python, Bash)
 - **Critical gaps:** Fork/wait process family, process group management, some ioctl operations
 
-**Last Updated:** 2026-02-08 (Nightly gVisor Tests Run)
+**Last Updated:** 2026-02-16 (Nightly gVisor Tests Run)
 
 ## Syscall Coverage Matrix
 
@@ -537,16 +537,16 @@ gVisor tests are organized in `/test/syscalls/linux/` with **275 .cc test files*
 
 ### Metrics and Goals
 
-### Current State (2026-02-08)
-- **Syscalls Implemented:** 93 (improved verification using comprehensive grep pattern)
-- **gVisor Tests Available:** 275 test files (cloned and verified)
+### Current State (2026-02-16)
+- **Syscalls Implemented:** 93 (stable since 2026-02-08)
+- **gVisor Tests Available:** 277 test files (fresh clone 2026-02-16)
 - **gVisor Repo Cloned:** ✅ Yes, available at `/tmp/gh-aw/agent/gvisor/` (sparse checkout of test/syscalls/linux)
 - **Interpreter Coverage:**
   - `/bin/sh`: 100%
   - Node.js: 100%
-  - Python: 95%
+  - Python: 95% (subprocess blocked by missing fork/wait)
   - Bash: 90%
-- **Estimated Skill Compatibility:** 81% (13-14 of 16 Anthropic skills)
+- **Estimated Skill Compatibility:** 87-94% (14-15 of 16 Anthropic skills with fork/wait)
 - **Skills Actually Tested:** 0 of 16 (0%)
 
 **Verification Method:** Improved grep pattern capturing both `pub fn sys_*` and `pub(crate) fn sys_*` across all syscall files:
@@ -662,8 +662,8 @@ The gVisor test suite provides **275 comprehensive test files** that can validat
 
 ---
 
-**Document Version:** 4.0 (Nightly Update - Syscall Count Corrected to 93)  
-**Last Updated:** 2026-02-08 (Automated gVisor Tests Run)  
-**gVisor Repo:** Cloned at `/tmp/gh-aw/agent/gvisor/` (275 test files)  
-**Next Review:** After Tier 1 skill testing  
-**Next Automated Run:** 2026-02-09 (nightly)
+**Document Version:** 4.1 (Nightly Update - gVisor Clone Refreshed)  
+**Last Updated:** 2026-02-16 (Automated gVisor Tests Run)  
+**gVisor Repo:** Cloned at `/tmp/gh-aw/agent/gvisor/` (277 test files)  
+**Next Review:** After fork/wait implementation or skill testing  
+**Next Automated Run:** 2026-02-17 (nightly)
