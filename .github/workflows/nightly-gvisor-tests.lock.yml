@@ -26,8 +26,8 @@
 name: "Nightly Gvisor Tests"
 "on":
   schedule:
-  - cron: "41 1 * * *"
-    # Friendly format: daily (scattered)
+  - cron: "41 1 */4 * *"
+    # Friendly format: every 4 days (scattered)
   workflow_dispatch:
 
 permissions: {}

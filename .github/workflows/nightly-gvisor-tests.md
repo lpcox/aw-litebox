@@ -1,7 +1,7 @@
 ---
 description: Nightly workflow that analyzes gVisor syscall tests to ensure complete syscall coverage for LiteBox skills
 on:
-  schedule: daily
+  schedule: every 4 days
 permissions:
   contents: read
   issues: read
