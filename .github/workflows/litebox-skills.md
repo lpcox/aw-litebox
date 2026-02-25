@@ -1,8 +1,8 @@
 ---
-description: Autonomous agent that implements support for shell scripts, Node.js, and Python in LiteBox to run all Anthropic skills. Runs four times per day with a full rust/crate development environment and GitHub integration for PR creation and commenting.
+description: Autonomous agent that implements support for shell scripts, Node.js, and Python in LiteBox to run all Anthropic skills. Runs once per day with a full rust/crate development environment and GitHub integration for PR creation and commenting.
 on:
   schedule:
-    - cron: "0 0,6,12,18 * * *"
+    - cron: "0 0 * * *"
 permissions:
   contents: read
   issues: read
