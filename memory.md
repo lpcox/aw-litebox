@@ -1,18 +1,19 @@
 # Repo Assist Memory
 
 ## Last Updated
-2026-02-26 05:52 UTC
+2026-02-27 05:50 UTC
 
 ## Run History
 | Date | Run ID | Tasks |
 |------|--------|-------|
+| 2026-02-27 | 22474570910 | Task 7 (labels #101-102), Task 11 (monthly summary) |
 | 2026-02-26 | 22429715043 | Task 7 (labels), Task 9 (welcome - no new contributors), Task 11 (monthly summary) |
 | 2026-02-25 | 22406141163 | Task 1 (triage), Task 7 (labels), Task 11 (monthly summary) |
 
 ## Tasks Last Run
 - Task 1 (Triage): 2026-02-25
-- Task 7 (Labels): 2026-02-26
-- Task 11 (Monthly Summary): 2026-02-26
+- Task 7 (Labels): 2026-02-27
+- Task 11 (Monthly Summary): 2026-02-27
 - Task 9 (Welcome): 2026-02-26
 - Task 2 (Fix Issues): never
 - Task 3 (Improvements): never
@@ -28,9 +29,10 @@
 - Status: open
 
 ## Issue Backlog Cursor
-- Last processed: #88 (labelling run)
-- Total open issues: ~93
-- Next cursor: continue from #89 next run
+- Last processed: #102 (labelling run 2026-02-27)
+- Total open issues: ~95
+- Labelling status: All issues through #155 have been examined; unlabelled automated issues have been labelled 'off topic'. Labelling task is largely complete.
+- Next run: Focus on other tasks (no more bulk labelling needed)
 
 ## Comments Made
 - #44: 2026-02-25 - flagged as stale draft PR
@@ -38,13 +40,15 @@
 
 ## Labels Applied
 - #44: wontfix
-- #55: wontfix (PR #55 already closed/not visible in PR list - may already be closed)
+- #55: wontfix
 - #37, #43, #48, #49, #52, #53: off topic
 - #56–#88 (30 issues): off topic (2026-02-26)
+- #101, #102: off topic (2026-02-27)
+- Note: Issues #89-#100, #103-#155 already have appropriate labels ('automation', 'litebox-skills', 'gvisor-syscall', etc.) from their creating workflows
 
 ## PR Status Notes
 - PR #44: Draft, stale - targeting copilot/update-syscall-count-analysis (not main). Fix already in main via #51. Labelled wontfix. Commented 2026-02-25.
-- PR #91: Foundation litebox_skill_runner crate overhaul. Open since Feb 15. 35+ automated comments. No human engagement seen.
+- PR #91: MERGED into main via merge commit a3beb4e
 - PR #131: First skills testing docs. Documentation-only. Open since Feb 22.
 - PR #134: skill-creator testing. Documentation-only. Open since Feb 23.
 - PR #139: Complete validation coverage. Documentation-only. Open since Feb 23.
@@ -60,15 +64,15 @@
 (none yet)
 
 ## Key Codebase Facts
-- litebox_skill_runner/src/lib.rs exists in main (85 lines, older version)
-- Many PRs target main at SHA 47a495525c (Feb 9 "Fix clippy" commit)
-- Current main HEAD: d7c0d0ff (Feb 25 - repo-assist workflow added)
-- Most open issues (~80+) are automated status summaries from litebox-skills/gvisor-tests workflows
+- litebox_skill_runner/src/lib.rs: Runtime::Node.interpreter_path() returns "/usr/bin/node" but /usr/local/bin/node is actual path. May need fixing once execute() is implemented.
+- Runtime::Bash.is_supported() returns false (comment: "Requires getpgrp syscall") - intentional for LiteBox sandbox context
+- SkillRunner::execute() is unimplemented (returns "Execution not yet implemented")
 - All .rs files must have Microsoft copyright header (enforced by dev_tests)
+- Many open issues (~95) are automated workflow status summaries
 
 ## Next Run Priority
-- Task 7: Continue labelling issues #89-153 with "off topic" (~55 remaining)
-- Task 1: Triage - look for any real bugs or feature requests
-- Task 2 or 3: Look for fixable bugs or improvements
-- Task 6: Stale PR nudges for old PRs (PR #91 has been open since Feb 15 with no human engagement)
-- Task 8: Release prep check
+- Task 2 (Fix Issues): Look for fixable bugs - candidate: Node.js path in lib.rs once execute() is implemented
+- Task 3 (Improvements): Consider improving detect_from_file() to handle .bash extension
+- Task 6 (Stale Nudges): PRs #54 (16 days) and #72 (15 days) are stale but waiting on maintainer - no nudge needed
+- Task 8 (Release Prep): Check if any meaningful changes warrant a release
+- Task 10 (Forward): Investigate what would move the skill runner crate forward
