@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-//! LiteBox Skill Runner
+//! `LiteBox` Skill Runner
 //!
-//! This crate provides functionality to execute Anthropic Agent Skills within LiteBox's
+//! This crate provides functionality to execute Anthropic Agent Skills within `LiteBox`'s
 //! sandboxed environment. It supports shell scripts, Node.js, Python, and Bash execution.
 
 #![warn(missing_docs)]
@@ -36,23 +36,64 @@ impl Runtime {
         }
     }
 
-    /// Detects the runtime from a script file's shebang or extension
+    /// Detects the runtime from a script file's extension or shebang line.
+    ///
+    /// First checks the file extension (`.sh`, `.js`, `.py`, `.bash`). If the
+    /// file has no recognized extension, reads the first line and matches
+    /// against common shebang patterns.
     ///
     /// # Errors
-    /// Returns an error if the runtime cannot be determined
+    /// Returns an error if the runtime cannot be determined from either the
+    /// extension or the shebang line.
     pub fn detect_from_file(path: &Path) -> Result<Self, String> {
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             return match ext {
                 "sh" => Ok(Self::Shell),
                 "js" => Ok(Self::Node),
                 "py" => Ok(Self::Python),
-                _ => Err(format!("Unsupported file extension: {ext}")),
+                "bash" => Ok(Self::Bash),
+                _ => Err(format!("Unsupported file extension: .{ext}")),
             };
         }
-        Err("Could not determine runtime from file".to_string())
+
+        // Fall back to shebang detection for extensionless files
+        Self::detect_from_shebang(path)
+            .ok_or_else(|| format!("Could not determine runtime for: {}", path.display()))
     }
 
-    /// Returns whether this runtime is currently supported in LiteBox
+    /// Reads the first line of a file and returns the runtime indicated by
+    /// a `#!` shebang, or `None` if no shebang is recognized.
+    fn detect_from_shebang(path: &Path) -> Option<Self> {
+        use std::io::{BufRead, BufReader};
+        let file = std::fs::File::open(path).ok()?;
+        let mut lines = BufReader::new(file).lines();
+        let first_line = lines.next()?.ok()?;
+
+        if !first_line.starts_with("#!") {
+            return None;
+        }
+
+        // Extract interpreter path and optional argument (e.g. `env bash`)
+        let mut parts = first_line[2..].split_whitespace();
+        let interpreter = parts.next().unwrap_or("").trim_end_matches('/');
+
+        // When the interpreter is `env`, the actual runtime is the first argument
+        let name = if interpreter.rsplit('/').next() == Some("env") {
+            parts.next().unwrap_or("")
+        } else {
+            interpreter.rsplit('/').next().unwrap_or(interpreter)
+        };
+
+        match name {
+            "sh" => Some(Self::Shell),
+            "bash" => Some(Self::Bash),
+            "node" | "nodejs" => Some(Self::Node),
+            "python" | "python3" => Some(Self::Python),
+            _ => None,
+        }
+    }
+
+    /// Returns whether this runtime is currently supported in `LiteBox`
     #[must_use]
     pub fn is_supported(&self) -> bool {
         match self {
@@ -180,6 +221,65 @@ mod tests {
             Runtime::detect_from_file(Path::new("main.py")).unwrap(),
             Runtime::Python
         );
+        assert_eq!(
+            Runtime::detect_from_file(Path::new("run.bash")).unwrap(),
+            Runtime::Bash
+        );
+    }
+
+    #[test]
+    fn test_runtime_detection_unknown_extension() {
+        assert!(Runtime::detect_from_file(Path::new("file.zsh")).is_err());
+    }
+
+    #[test]
+    fn test_runtime_detection_from_shebang() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+
+        let cases: &[(&str, &[u8], Runtime)] = &[
+            ("sh_script", b"#!/bin/sh\necho hi\n", Runtime::Shell),
+            (
+                "bash_script",
+                b"#!/usr/bin/env bash\necho hi\n",
+                Runtime::Bash,
+            ),
+            (
+                "node_script",
+                b"#!/usr/bin/node\nconsole.log('hi')\n",
+                Runtime::Node,
+            ),
+            (
+                "py_script",
+                b"#!/usr/bin/python3\nprint('hi')\n",
+                Runtime::Python,
+            ),
+        ];
+
+        for (name, content, expected) in cases {
+            let path = dir.path().join(name);
+            std::fs::File::create(&path)
+                .unwrap()
+                .write_all(content)
+                .unwrap();
+            assert_eq!(
+                Runtime::detect_from_file(&path).unwrap(),
+                *expected,
+                "failed for {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_runtime_detection_no_shebang() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("no_shebang");
+        std::fs::File::create(&path)
+            .unwrap()
+            .write_all(b"echo hi\n")
+            .unwrap();
+        assert!(Runtime::detect_from_file(&path).is_err());
     }
 
     #[test]
