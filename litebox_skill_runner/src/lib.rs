@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-//! LiteBox Skill Runner
+//! `LiteBox` Skill Runner
 //!
-//! This crate provides functionality to execute Anthropic Agent Skills within LiteBox's
+//! This crate provides functionality to execute Anthropic Agent Skills within `LiteBox`'s
 //! sandboxed environment. It supports shell scripts, Node.js, Python, and Bash execution.
 
 #![warn(missing_docs)]
@@ -52,7 +52,7 @@ impl Runtime {
         Err("Could not determine runtime from file".to_string())
     }
 
-    /// Returns whether this runtime is currently supported in LiteBox
+    /// Returns whether this runtime is currently supported in `LiteBox`
     #[must_use]
     pub fn is_supported(&self) -> bool {
         match self {
@@ -141,16 +141,32 @@ impl SkillRunner {
 
     /// Executes a script with the specified runtime
     ///
+    /// Invokes the runtime's interpreter on the given script path and returns
+    /// its combined stdout on success, or an error message (including the
+    /// process exit code) on failure.
+    ///
     /// # Errors
-    /// Returns an error if execution fails
-    pub fn execute(&self, _script_path: &Path, _runtime: Runtime) -> Result<String, String> {
-        // Placeholder implementation
-        // A full implementation would:
-        // 1. Validate the runtime is supported
-        // 2. Prepare the execution environment
-        // 3. Use litebox_runner to execute the script
-        // 4. Capture and return output
-        Err("Execution not yet implemented".to_string())
+    /// Returns an error if the runtime is unsupported, the interpreter cannot
+    /// be spawned, or the script exits with a non-zero status.
+    pub fn execute(&self, script_path: &Path, runtime: Runtime) -> Result<String, String> {
+        if !runtime.is_supported() {
+            return Err(format!(
+                "Runtime {runtime:?} is not supported in this environment"
+            ));
+        }
+
+        let output = std::process::Command::new(runtime.interpreter_path())
+            .arg(script_path)
+            .output()
+            .map_err(|e| format!("Failed to spawn interpreter: {e}"))?;
+
+        if output.status.success() {
+            Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let code = output.status.code().unwrap_or(-1);
+            Err(format!("Script exited with code {code}: {stderr}"))
+        }
     }
 }
 
@@ -201,5 +217,43 @@ mod tests {
         let runner =
             SkillRunner::new().with_dependencies(vec!["dep1".to_string(), "dep2".to_string()]);
         assert_eq!(runner.dependencies.len(), 2);
+    }
+
+    #[test]
+    fn test_execute_unsupported_runtime() {
+        let runner = SkillRunner::new();
+        let result = runner.execute(Path::new("/tmp/test.bash"), Runtime::Bash);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not supported"));
+    }
+
+    #[test]
+    fn test_execute_shell_script() {
+        use std::io::Write as _;
+        let script_path = std::env::temp_dir().join("litebox_skill_runner_test_exec.sh");
+        let mut f = std::fs::File::create(&script_path).expect("create temp script");
+        writeln!(f, "#!/bin/sh\necho hello from litebox_skill_runner").expect("write script");
+
+        let runner = SkillRunner::new();
+        let result = runner.execute(&script_path, Runtime::Shell);
+        let _ = std::fs::remove_file(&script_path);
+
+        assert!(result.is_ok(), "Expected success, got: {result:?}");
+        assert!(result.unwrap().contains("hello from litebox_skill_runner"));
+    }
+
+    #[test]
+    fn test_execute_failing_script() {
+        use std::io::Write as _;
+        let script_path = std::env::temp_dir().join("litebox_skill_runner_test_fail.sh");
+        let mut f = std::fs::File::create(&script_path).expect("create temp script");
+        writeln!(f, "#!/bin/sh\nexit 42").expect("write script");
+
+        let runner = SkillRunner::new();
+        let result = runner.execute(&script_path, Runtime::Shell);
+        let _ = std::fs::remove_file(&script_path);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("42"));
     }
 }
