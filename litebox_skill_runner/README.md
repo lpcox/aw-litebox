@@ -50,17 +50,18 @@ skill-name/
 
 ## Current Status
 
-This is an initial implementation providing:
 - ✅ Basic skill loading and detection
-- ✅ Runtime identification from file extensions
+- ✅ Runtime identification from file extensions and shebangs
 - ✅ Type-safe runtime representation
-- ⚠️ Placeholder execution (full implementation pending)
+- ✅ **Script execution with `std::process::Command`**
+- ✅ Output capture and error handling
 
 ### Next Steps
-1. Integrate with `litebox_runner_linux_userland` for actual execution
+1. Test execution with Node.js and Python scripts
 2. Add YAML frontmatter parsing for SKILL.md files
 3. Implement dependency packaging and environment setup
 4. Add comprehensive integration tests with real Anthropic skills
+5. Support environment variables and working directory configuration
 
 ## Examples
 

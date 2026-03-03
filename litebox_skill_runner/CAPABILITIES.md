@@ -2,7 +2,7 @@
 
 This document tracks the current capabilities and limitations of the `litebox_skill_runner` crate for executing Anthropic Agent Skills.
 
-**Last Updated:** February 15, 2026
+**Last Updated:** March 3, 2026
 
 ## Implementation Status
 
@@ -10,10 +10,12 @@ This document tracks the current capabilities and limitations of the `litebox_sk
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Runtime Detection | ✅ Complete | Detects Shell, Node.js, Python, Bash from file extensions |
+| Runtime Detection | ✅ Complete | Detects Shell, Node.js, Python, Bash from file extensions and shebangs |
 | Skill Loading | ✅ Complete | Loads skills from directories with SKILL.md |
 | Script Discovery | ✅ Complete | Lists all scripts in skill's `scripts/` directory |
-| Execution Engine | ⚠️ Placeholder | Basic structure exists, full implementation pending |
+| **Execution Engine** | **✅ Working** | **Implemented with `std::process::Command`** |
+| Output Capture | ✅ Working | Captures stdout/stderr from executed scripts |
+| Error Handling | ✅ Working | Descriptive error messages for common failures |
 | YAML Parsing | ❌ Not Implemented | Currently uses directory name as skill name |
 | Dependency Management | ⚠️ Basic | Structure exists, needs integration with packaging tools |
 
