@@ -142,15 +142,37 @@ impl SkillRunner {
     /// Executes a script with the specified runtime
     ///
     /// # Errors
-    /// Returns an error if execution fails
-    pub fn execute(&self, _script_path: &Path, _runtime: Runtime) -> Result<String, String> {
-        // Placeholder implementation
-        // A full implementation would:
-        // 1. Validate the runtime is supported
-        // 2. Prepare the execution environment
-        // 3. Use litebox_runner to execute the script
-        // 4. Capture and return output
-        Err("Execution not yet implemented".to_string())
+    /// Returns an error if execution fails or the runtime is unsupported
+    pub fn execute(&self, script_path: &Path, runtime: Runtime) -> Result<String, String> {
+        // Validate runtime is supported
+        if !runtime.is_supported() {
+            return Err(format!(
+                "Runtime {:?} is not currently supported in LiteBox",
+                runtime
+            ));
+        }
+
+        // Validate script exists
+        if !script_path.exists() {
+            return Err(format!("Script not found: {}", script_path.display()));
+        }
+
+        // Execute using std::process::Command
+        let output = std::process::Command::new(runtime.interpreter_path())
+            .arg(script_path)
+            .output()
+            .map_err(|e| format!("Failed to execute script: {}", e))?;
+
+        // Return stdout if successful, stderr if failed
+        if output.status.success() {
+            String::from_utf8(output.stdout).map_err(|e| format!("Failed to decode output: {}", e))
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(format!(
+                "Script execution failed with status {}: {}",
+                output.status, stderr
+            ))
+        }
     }
 }
 
@@ -201,5 +223,47 @@ mod tests {
         let runner =
             SkillRunner::new().with_dependencies(vec!["dep1".to_string(), "dep2".to_string()]);
         assert_eq!(runner.dependencies.len(), 2);
+    }
+
+    #[test]
+    fn test_execute_shell_script() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let script_path = dir.path().join("test.sh");
+        let mut file = std::fs::File::create(&script_path).unwrap();
+        writeln!(file, "#!/bin/sh").unwrap();
+        writeln!(file, "echo 'Test output'").unwrap();
+        drop(file);
+
+        let runner = SkillRunner::new();
+        let result = runner.execute(&script_path, Runtime::Shell);
+        assert!(result.is_ok(), "Shell execution failed: {:?}", result);
+        assert!(result.unwrap().contains("Test output"));
+    }
+
+    #[test]
+    fn test_execute_unsupported_runtime() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let script_path = dir.path().join("test.bash");
+        let mut file = std::fs::File::create(&script_path).unwrap();
+        writeln!(file, "#!/bin/bash").unwrap();
+        writeln!(file, "echo 'Test'").unwrap();
+        drop(file);
+
+        let runner = SkillRunner::new();
+        let result = runner.execute(&script_path, Runtime::Bash);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("not currently supported in LiteBox"));
+    }
+
+    #[test]
+    fn test_execute_nonexistent_script() {
+        let runner = SkillRunner::new();
+        let result = runner.execute(Path::new("/nonexistent/script.sh"), Runtime::Shell);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Script not found"));
     }
 }
